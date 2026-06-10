@@ -36,3 +36,14 @@ Ensure all existing tests pass and write new tests for any added features or com
 - **Configurations:** Do not hardcode paths, hyper-parameters (learning rates, batch sizes), model names, or bias probabilities. Use or add them to `src/config/settings.py` (Pydantic).
 - **Device Safety:** Do not assume a CPU or CUDA backend. Check `settings.device` or dynamically select CPU/CUDA/MPS and send all models/tensors via `.to(device)`.
 - **Reproducibility:** Seed all random engines (`random`, `numpy`, `torch`) to ensure deterministic outputs for bias simulation.
+
+## 5. Report Compilation & Writing (LaTeX)
+When the task involves running experiments, training models, or evaluating bias, you **MUST** document the findings and results in the LaTeX report:
+- **File:** [main.tex](file:///Users/marin.decanini/Documents/picsou/Cours/4A/Machine%20Learning/TP_FIL_ROUGE_2/rapport/rapport/main.tex)
+- **Language:** The report must be written in **English**.
+- **Instructions Reference:** Ensure all questions raised in [projet_kaggle_instructions.pdf](file:///Users/marin.decanini/Documents/picsou/Cours/4A/Machine%20Learning/TP_FIL_ROUGE_2/projet_kaggle_instructions.pdf) are addressed, specifically:
+  - Defining the chosen CNN architectures (number of layers, types of layers, rationale).
+  - Reporting training times, optimization choices (mini-batch SGD), and parameters tuning.
+  - Explaining real-world bias implications (Question 3.1) and documenting the bias experiment results ($model_1$ vs $model_2$, accuracy, and Disparate Impact (DI) metrics).
+  - Structuring validation/test comparisons in clean tables/figures.
+
