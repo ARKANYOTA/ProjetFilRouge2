@@ -191,11 +191,18 @@ def main() -> int:
         default=30,
         help="Number of epochs to train safety models (default: 30)",
     )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        help="Device to use for training (default: auto)",
+    )
     args = parser.parse_args()
 
     settings = Settings()
-    # Override settings epochs if passed via CLI
+    # Override settings epochs and device if passed via CLI
     settings.epochs = args.epochs
+    settings.device = args.device
 
     run_experiment(args.model, settings)
     logger.info("Safety experiment completed. Plots and JSON saved in results/")
