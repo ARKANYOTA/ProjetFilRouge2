@@ -65,28 +65,27 @@
 	{\scshape\Large \UE \\ \sujet \\ \par} %sous-titre
 	\vspace{1cm}%Espace de 1cm
     \rule{\linewidth}{0.4 mm} \\[0.4 cm]
-	{\huge\bfseries \titre \par} \
+	{\huge\bfseries \titre \par}
     \rule{\linewidth}{0.4 mm} \\[0.0 cm]
 	\vspace{1cm}%Espace de 3cm
     
 	\begin{minipage}{0.4\textwidth} %Minipage pour faire deux colonnes
 		\begin{flushleft} \large %Envoyer à gauche
 		\emph{\textbf{Auteur :}}\\ %Pour le titre au dessus des noms à gauche
-        \eleves\\ %Remplacer pour chacun
+        \eleves
         \vspace{1cm}%Espace de 1cm
-        \emph{\textbf{}}\\
 		\end{flushleft}
 	\end{minipage}
 	~
 	\begin{minipage}{0.4\textwidth}
 		\begin{flushright} \large
-		\emph{\textbf{Sous la supervision de :\\}} \\
+		\emph{\textbf{Sous la supervision de :}}\\
 		 \enseignant 
 		\end{flushright}
 	\end{minipage}\\[2cm]
     
 	\vfill
-	{Année 2025-2026 \\} %Affichage de la date
+	{Année 2025-2026} %Affichage de la date
 
 \end{titlepage}
 }
