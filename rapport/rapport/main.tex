@@ -1,0 +1,120 @@
+\documentclass{name}
+\usepackage{lipsum}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{geometry}
+\usepackage{float}
+\geometry{margin=1in}
+\usepackage{setspace}
+\usepackage{stmaryrd}
+\usepackage[sorting=none]{biblatex}
+\addbibresource{bibliographie.bib}
+\usepackage{csquotes}
+\usepackage[english]{babel}
+\NoAutoSpaceBeforeFDP
+\usepackage[utf8]{inputenc}
+\usepackage[a4paper,left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage[pdftex]{graphicx}
+\usepackage{fancyhdr}
+\usepackage{lmodern}
+\usepackage{color}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{awesomebox}
+\usepackage{todonotes}
+\usepackage{upquote}
+\newtheorem{theorem}{Théorème}
+\newtheorem{remark}{Remarque}
+\newtheorem{definition}{Définition}
+
+\begin{document}
+%----------- Informations du rapport ---------
+
+\titre{Rapport TP Segmentation} %Titre du fichier .pdf
+
+\eleves{Marin \textsc{Decanini}\\Nolan \textsc{Carlisi}\\ Mai 2025} %Noms des élèves
+
+\enseignantenseirb{ \textsc{aa}\\\textsc{aa }}
+\enseignant{Pierre  \textsc{Weiss}\\Université de Toulouse\\ Senior CNRS researcher at IRIT } %Nom de l'enseignant
+
+
+
+%----------- Initialisation -------------------
+        
+\fairemarges %Afficher les marges
+\fairepagedegarde %Créer la page de garde
+
+\newpage
+\setcounter{pagezero}{\value{0}}
+
+\begin{center}
+	\begin{minipage}{13cm}
+	    \begin{center}
+	        \section{Abstract}\\
+	    \end{center}
+			Ce rapport présente nos résultats et analyses concernant le TP 2 qui porte sur la segmentation d'images.
+	\end{minipage}
+\end{center}
+
+
+
+
+\par 
+\setcounter{page}{\value{pagezero}}
+
+\newpage
+\setcounter{page}{\value{pagezero}}
+\tableofcontents
+
+\newpage
+\section{Partie I : Réponses aux questions préliminaires}
+
+
+\subsection{How many layers do we have in the network? What are the activation functions?}
+\text{Dans le réseau de base il y a 3 couches cachées (trois Conv2D) qui utilisent toutes la fonction d'activation ReLU. La couche de sortie utilise une activation sigmoïde. En comptant la couche d'entrée, le réseau a au total 5 couches.}
+
+
+\subsection{Explain why we have a `sigmoid` activation at the end of the network? Write the training optimization problem.}
+\text{La fonction sigmoïde est utilisée à la fin du réseau car elle permet de produire des sorties sous forme de probabilités, entre 0 et 1, ce qui est idéal pour les tâches de segmentation binaire où chaque pixel doit être classé comme appartenant à une classe ou non. 
+L'optimisation de l'entraînement vise à minimiser la fonction de perte du modèle entre les prédictions du modèle et les étiquettes réelles. Le problème d'optimisation peut être formulé comme suit :}
+
+\subsection{Verify your model output shape? The link with the input shape?}
+\text{TODO}
+
+\subsection{Explanation of the training algorithm}
+\text{TODO}
+
+\subsection{Loss function used}
+\text{Dans le projet, on utilise comme loss fonction la MSE. 
+Cependant puisque nous sommes dans le cadre d'une classification binaire, il serait plus approprié d'utiliser la Binary Cross-Entropy (BCE) comme fonction de perte.
+ La BCE est mieux adaptée aux tâches de classification binaire car elle mesure la différence entre les distributions de probabilité des prédictions du modèle et des étiquettes réelles, ce qui permet une meilleure optimisation du modèle pour ce type de problème.}
+
+\section{Partie II : Tests et résultats}
+
+\subsection{Introduction}
+\text{Afin de pouvoir tester une grande variété d'hyperparamètres et d'architectures différentes, nous avons développé un petit framework qui permet de benchmark différentes architectures et modèles entre eux efficacement. Tout le code utilisé pour réaliser nos tests est disponibele sur notre dépôt GitHub au lien donné.
+
+Nous avons décidé d'utiliser la BCE plutôt que la MSE pour réaliser nos tests.}
+
+\subsubsection{Architectures testées}
+
+\text{En plus de l'architecture du CNN à 3 Layers proposés dans le sujet, nous avons aussi implémenté le réseau UNET qui a été expliqué en séance de TP.
+Nous avons aussi abstractisé le CNN à 3 Layers en une classe générique qui permet de créer des CNN avec un nombre variable de couches cachées.
+Notre objectif était de pouvoir tester l'impact du nombre de couches cachées sur les performances du modèle et sur l'entraînement.}
+
+\subsection{Influence du learning rate}
+
+
+
+\end{document}
