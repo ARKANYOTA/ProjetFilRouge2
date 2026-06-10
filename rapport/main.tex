@@ -117,8 +117,62 @@ ResNet-18 & 17 Conv, 1 MaxPool, 1 FC & ReLU & 11,174,344 \\
 \end{table}
 
 \subsection{Hyperparameter Tuning and Validation}
-% Question 2.4: Validation strategy, hyperparameter optimization process, and performance summary.
 To tune hyperparameters and prevent overfitting, we split the labeled TILDA dataset into a stratified 80/20 train/validation split. This guarantees that each class has the same proportion (80/20) in both the training set (1,888 samples) and validation set (473 samples).
+
+For Question 2.4, the model validation metrics, parameter details, and total training times are summarized in Table \ref{tab:results}.
+\begin{table}[H]
+\centering
+\caption{Model Training and Evaluation Metrics}
+\label{tab:results}
+\begin{tabular}{lcccccc}
+\toprule
+Model & Learning Rate & Batch Size & Epochs & Train Accuracy & Val Accuracy & Training Time (s) \\
+\midrule
+LeNet-5 & 0.01 & 32 & 50 & 28.23\% & 30.87\% & 427.3s \\
+AlexNet (Modified) & 0.01 & 32 & 50 & 29.77\% & 36.36\% & 357.2s \\
+ResNet-18 & 0.01 & 32 & 50 & 64.88\% & \textbf{69.98\%} & 1,652.8s \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/lenet5_training_curves.png}
+    \caption{LeNet-5 Curves}
+    \label{fig:lenet5_curves}
+\end{subfigure}
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/alexnet_training_curves.png}
+    \caption{AlexNet Curves}
+    \label{fig:alexnet_curves}
+\end{subfigure}
+\begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/resnet18_training_curves.png}
+    \caption{ResNet-18 Curves}
+    \label{fig:resnet18_curves}
+\end{subfigure}
+\caption{Training and validation loss and accuracy curves for the three architectures on the TILDA dataset.}
+\label{fig:training_curves}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/model_comparison.png}
+\caption{Comparison of peak validation accuracy and total training time (seconds) across the three models.}
+\label{fig:model_comparison}
+\end{figure}
+
+\subsubsection{Analysis of Model Performance and Overfitting}
+The experimental results demonstrate a clear hierarchical progression in performance:
+\begin{itemize}
+    \item \textbf{LeNet-5 (30.87\%):} The classical architecture shows severe underfitting. Due to its shallow depth, average pooling, and tanh activation functions, it is unable to extract complex texture patterns from the fabric images.
+    \item \textbf{AlexNet (36.36\%):} The modified AlexNet shows slightly better performance. However, without Batch Normalization, it struggles to optimize efficiently on grayscale images from scratch. It also exhibits overfitting tendencies due to high fully-connected layer parameter density relative to the dataset size.
+    \item \textbf{ResNet-18 (69.98\%):} ResNet-18 achieves a highly superior validation accuracy of 69.98\%, nearly doubling the baselines. The skip connections prevent vanishing gradients, while the Batch Normalization layers stabilize intermediate activations. This allows the network to learn rich representations of textile textures without overfitting prematurely.
+\end{itemize}
 
 \section{Machine Learning and AI Safety}
 

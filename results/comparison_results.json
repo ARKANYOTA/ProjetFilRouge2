@@ -1,0 +1,20 @@
+{
+  "lenet5": {
+    "best_val_acc": 0.3086680761099366,
+    "best_train_acc": 0.2823093220338983,
+    "training_time_s": 427.31660509109497,
+    "epochs_trained": 50
+  },
+  "alexnet": {
+    "best_val_acc": 0.36363636363636365,
+    "best_train_acc": 0.2976694915254237,
+    "training_time_s": 357.2433626651764,
+    "epochs_trained": 50
+  },
+  "resnet18": {
+    "best_val_acc": 0.6997885835095138,
+    "best_train_acc": 0.6488347457627118,
+    "training_time_s": 1652.7959549427032,
+    "epochs_trained": 50
+  }
+}
