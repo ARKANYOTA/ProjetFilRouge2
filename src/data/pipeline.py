@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from typing import Any
+
 from torch.utils.data import DataLoader, Dataset
+
 from src.config.settings import Settings
 
 

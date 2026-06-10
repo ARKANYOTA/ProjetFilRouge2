@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
 import torch
 from torch.utils.data import Dataset
 
@@ -21,7 +20,11 @@ class TILDADataset(Dataset[tuple[torch.Tensor, int]]):
 
 
 class BiasedDataset(Dataset[tuple[torch.Tensor, int]]):
-    """Skeleton wrapper dataset that appends a bias channel epsilon based on probabilities p0 and p1."""
+    """Skeleton wrapper dataset that appends a bias channel epsilon
+
+    based on probabilities p0 and p1.
+    """
+
 
     def __init__(
         self,

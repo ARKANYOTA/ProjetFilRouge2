@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     )
 
     # Dataset settings
-    dataset_path: str = "./data"
+    dataset_path: str | None = None
     image_size: int = 224
 
     # Model settings
@@ -30,3 +30,11 @@ class Settings(BaseSettings):
     # Bias evaluation settings
     p0: float = 0.5
     p1: float = 0.5
+
+    def get_resolved_dataset_path(self) -> str:
+        if self.dataset_path:
+            return self.dataset_path
+        import kagglehub
+
+        path = kagglehub.competition_download("modia-ml-2026")
+        return str(path)

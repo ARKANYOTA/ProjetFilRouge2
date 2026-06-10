@@ -1,0 +1,115 @@
+\documentclass{name}
+\usepackage{lipsum}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{setspace}
+\usepackage{stmaryrd}
+\usepackage[backend=bibtex,sorting=none]{biblatex}
+\addbibresource{bibliographie.bib}
+\usepackage{csquotes}
+\usepackage[english]{babel}
+\usepackage{fancyhdr}
+\usepackage{lmodern}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{awesomebox}
+\usepackage{todonotes}
+\usepackage{upquote}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{remark}{Remark}
+\newtheorem{definition}{Definition}
+
+\newcounter{pagezero}
+
+\begin{document}
+
+%----------- Informations du rapport ---------
+\UE{S8 Machine Learning}
+\sujet{Kaggle Project: Textile Classification \& AI Safety}
+\titre{TILDA Textile Classifier and AI Safety}
+
+\eleves{Marin \textsc{Decanini}\\Nolan \textsc{Carlisi}}
+
+\enseignant{Pierre \textsc{Weiss}\\Université de Toulouse\\ Senior CNRS researcher at IRIT}
+
+%----------- Initialisation -------------------
+\fairemarges %Afficher les marges
+\fairepagedegarde %Créer la page de garde
+
+\newpage
+\setcounter{pagezero}{0}
+
+\begin{center}
+	\begin{minipage}{13cm}
+	    \begin{center}
+	        \section*{Abstract}
+	    \end{center}
+	    This report presents our implementation and experimental analysis for the S8 Machine Learning Kaggle project on the TILDA textile dataset. 
+	    We focus on two core components: first, training state-of-the-art Convolutional Neural Networks (CNNs) for classification; and second, analyzing machine learning security and AI safety under biased training distributions. 
+	    Specifically, we implement LeNet and ResNet architectures, evaluate their performance using mini-batch SGD, and perform systematic hyperparameter tuning. 
+	    Furthermore, we investigate model vulnerability to spurious correlations by constructing a biased dataset with a noise-like channel correlated with labels, measuring both classification accuracy and fairness using the Disparate Impact (DI) metric.
+	\end{minipage}
+\end{center}
+
+\par 
+\setcounter{page}{\value{pagezero}}
+
+\newpage
+\setcounter{page}{\value{pagezero}}
+\tableofcontents
+
+\newpage
+
+\section{Introduction}
+% Introduce the report, goals, and structure.
+
+\section{Training State-of-the-Art CNN Models}
+
+\subsection{Image Pre-processing and Data Augmentation}
+% Question 2.1: Explain the pre-processing steps and data augmentation strategies.
+
+\subsection{Model Architecture and Selection}
+% Question 2.2: Rationale for choosing the networks and precise definition of the models (layers, dimensions, functions).
+
+\subsection{Training and Optimization Methodology}
+% Question 2.3: Details on mini-batch SGD, optimization parameters, hardware, and training times.
+
+\subsection{Hyperparameter Tuning and Validation}
+% Question 2.4: Validation strategy, hyperparameter optimization process, and performance summary.
+
+\section{Machine Learning and AI Safety}
+
+\subsection{Real-Life Bias Context}
+% Question 3.1: Discussion on real-world AI bias examples and their societal/ethical consequences.
+
+\subsection{Biased Dataset Construction}
+% Question 3.2: Explanation of the mathematical setup (Bernoulli trial, noise channel epsilon) and Pytorch dataset implementation.
+
+\subsection{Model Bias Evaluation}
+
+\subsubsection{Disparate Impact Analysis}
+% Question 3.3: Comparative evaluation of DI metrics between model 1 (unbiased) and model 2 (biased).
+
+\subsubsection{Test Accuracy Comparison}
+% Question 3.4: Test accuracy performance of model 1 vs model 2 on the binary classification task.
+
+\subsubsection{Summary of Results and Takeaways}
+% Question 3.5: Table summarizing Train/Val/Test accuracy and DI for both models, with conclusions.
+
+\subsection{Bias Study in the Literature (Bonus)}
+% Question 3.6: Short essay on "Est-ce qu'on peut faire confiance à mon modèle?" in light of model bias guidelines (EU requirements, CNIL).
+
+\printbibliography
+
+\end{document}
