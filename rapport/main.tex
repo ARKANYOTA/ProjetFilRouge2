@@ -72,29 +72,74 @@
 \newpage
 
 \section{Introduction}
-% Introduce the report, goals, and structure.
+Deep learning has revolutionized image classification and pattern recognition. However, as these models are increasingly deployed in real-world systems, understanding their capacity, training characteristics, and vulnerabilities to dataset bias has become a critical area of AI safety. This report documents our investigations on the TILDA textile dataset, structured in two major sections: first, training and comparing state-of-the-art Convolutional Neural Networks (LeNet-5, AlexNet, and ResNet-18) for multi-class textile classification; and second, analyzing how neural networks can inherit and amplify spurious correlations (biases) using a mathematical framework for biased dataset construction and evaluating the models using the Disparate Impact (DI) metric.
 
 \section{Training State-of-the-Art CNN Models}
 
 \subsection{Image Pre-processing and Data Augmentation}
-% Question 2.1: Explain the pre-processing steps and data augmentation strategies.
+The TILDA textile dataset contains grayscale \texttt{.tif} images of size $768 \times 512$ pixels representing different textile textures and defect classes. The dataset has 8 classes, with a relatively small sample size of approximately 2,361 images (~295 samples per class). To handle this dataset effectively and perform a rigorous comparison, we apply the following pre-processing and augmentation pipeline:
+\begin{itemize}
+    \item \textbf{Image Resizing:} To ensure all models receive the same input size and can be compared directly, we resize all images to a standard $224 \times 224$ pixels.
+    \item \textbf{Data Augmentation (Q2.1):} Due to the small sample size, deep architectures (especially AlexNet and ResNet-18) are highly prone to overfitting. We apply data augmentation techniques that preserve the textile texture semantic content:
+    \begin{itemize}
+        \item \textit{Random Horizontal and Vertical Flips:} Textile patterns and defects are invariant to reflections.
+        \item \textit{Random Rotations (up to $15^\circ$):} Fabric images may be rotated slightly.
+        \item \textit{Random Translation (Affine translation of up to 10\%):} Small shifts in alignment simulate different camera crops.
+    \end{itemize}
+    \item \textbf{Normalization:} We convert the images to PyTorch tensors and normalize the pixel values using a mean of 0.5 and a standard deviation of 0.5. This rescales the pixel range from $[0, 1]$ to $[-1, 1]$, centering the input data around zero with a variance close to 1, which helps stabilize gradient descent backpropagation (as discussed in LeNet-5 paper \S II.B).
+\end{itemize}
 
 \subsection{Model Architecture and Selection}
-% Question 2.2: Rationale for choosing the networks and precise definition of the models (layers, dimensions, functions).
+For Question 2.2, we selected three distinct convolutional neural network architectures representing a historical progression in deep learning:
+\begin{enumerate}
+    \item \textbf{LeNet-5 (LeCun et al., 1998):} Serves as a classical baseline. It features a simple architecture of three convolutional layers, average pooling, and two fully connected layers. Tanh activation functions are used. We adapt it by replacing the final spatial collapse with an adaptive average pooling layer to support $224 \times 224$ inputs, mapping the output to 8 classes. Total parameter count is 61,536.
+    \item \textbf{AlexNet (Krizhevsky et al., 2012):} Represents the breakthrough of deep CNNs, introducing ReLU activation functions to speed up training, overlapping max pooling ($3 \times 3$ with stride 2), and Dropout (0.5) to prevent overfitting in the fully connected layers. Because the TILDA dataset is extremely small compared to ImageNet (1.2M images), a full-scale AlexNet would immediately overfit. Thus, we halved the number of channels (first layer: 48 channels instead of 96, second: 128 instead of 256, etc.) and reduced the fully connected layers from 4096 to 1024 units.
+    \item \textbf{ResNet-18 (He et al., 2016):} Represents the modern state-of-the-art in CNNs. It solves the vanishing gradient problem in deep networks using residual connections (identity shortcuts mapping $y = F(x) + x$). It uses Batch Normalization after every convolutional layer (before ReLU activation) and does not use dropout. The network finishes with global average pooling and a single linear layer.
+\end{enumerate}
 
 \subsection{Training and Optimization Methodology}
-% Question 2.3: Details on mini-batch SGD, optimization parameters, hardware, and training times.
+For Question 2.3, all three models are trained from scratch using mini-batch Stochastic Gradient Descent (SGD) with a momentum of 0.9 and an initial learning rate of 0.01. We employ a \texttt{ReduceLROnPlateau} scheduler that monitors the validation loss and divides the learning rate by 10 (factor of 0.1) if the validation loss does not improve for 5 epochs (scheduler patience = 5), matching the strategy in both the AlexNet and ResNet papers. Early stopping is applied with a patience of 10 epochs.
+
+Training is performed on the macOS MPS (Metal Performance Shaders) backend using an Apple Silicon chip. The batch size is set to 32. 
+\begin{table}[H]
+\centering
+\caption{Model Architecture Details and Parameter Counts}
+\label{tab:models}
+\begin{tabular}{lllr}
+\toprule
+Model & Major Layers & Activations & Parameter Count \\
+\midrule
+LeNet-5 & 3 Conv, 2 AvgPool, 2 FC & Tanh & 61,536 \\
+AlexNet (Modified) & 5 Conv, 3 MaxPool, 3 FC & ReLU & 3,745,096 \\
+ResNet-18 & 17 Conv, 1 MaxPool, 1 FC & ReLU & 11,173,960 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Hyperparameter Tuning and Validation}
 % Question 2.4: Validation strategy, hyperparameter optimization process, and performance summary.
+To tune hyperparameters and prevent overfitting, we split the labeled TILDA dataset into a stratified 80/20 train/validation split. This guarantees that each class has the same proportion (80/20) in both the training set (1,888 samples) and validation set (473 samples).
 
 \section{Machine Learning and AI Safety}
 
 \subsection{Real-Life Bias Context}
-% Question 3.1: Discussion on real-world AI bias examples and their societal/ethical consequences.
+For Question 3.1, machine learning models do not learn abstract reasoning; instead, they learn to exploit correlations present in their training distributions. In real-world settings, if the training data contains historical biases or spurious correlations, the model will learn them and make biased predictions.
+Examples:
+\begin{itemize}
+    \item \textbf{Automated Hiring Systems:} If historical data favors male candidates due to past systemic biases, an AI resume screening tool will learn to associate words like "women's" or women's college names with lower scores, amplifying gender bias.
+    \item \textbf{Predictive Policing:} If policing datasets reflect over-policing of minority neighborhoods, the predictive model will project higher crime risk for those areas, creating a feedback loop of increased surveillance and arrest rates in those specific communities.
+\end{itemize}
+The consequences are severe, causing systemic discrimination, denial of credit or employment, and loss of trust in AI systems.
 
 \subsection{Biased Dataset Construction}
-% Question 3.2: Explanation of the mathematical setup (Bernoulli trial, noise channel epsilon) and Pytorch dataset implementation.
+For Question 3.2, we construct a biased version of the dataset using a binary classification task on classes 0 and 1 of TILDA (300 samples each). We add a noise-like second channel $\epsilon$ representing a spurious correlation:
+$$S \mid \{y = k\} \sim \text{Bernoulli}(p_k), \quad k \in \{0, 1\}.$$
+The noise channel is set as:
+\begin{itemize}
+    \item $\epsilon = 0$ if $S = 0$
+    \item $\epsilon \sim \mathcal{N}(0, I)$ if $S = 1$
+\end{itemize}
+In the unbiased setting ($model_1$), $p_0 = 0.5, p_1 = 0.5$, meaning noise is independent of the label. In the biased setting ($model_2$), $p_0 = 0.0, p_1 = 1.0$, meaning noise is perfectly correlated with label 1. We implement this in PyTorch by creating a \texttt{BiasedDataset} class that wraps our stratified validation split subsets. It dynamically retrieves labels and pre-computes $S$ values for exact reproducibility. When retrieving a sample, it generates the channel $\epsilon$ based on $S$ and concatenates it with $x$, producing a 2-channel tensor.
 
 \subsection{Model Bias Evaluation}
 
