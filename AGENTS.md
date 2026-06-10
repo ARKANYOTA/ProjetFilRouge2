@@ -48,4 +48,6 @@ When the task involves running experiments, training models, or evaluating bias,
   - Reporting training times, optimization choices (mini-batch SGD), and parameters tuning.
   - Explaining real-world bias implications (Question 3.1) and documenting the bias experiment results ($model_1$ vs $model_2$, accuracy, and Disparate Impact (DI) metrics).
   - Structuring validation/test comparisons in clean tables/figures.
+  - **Visualizations (Figures/Plots):** Generate explanatory charts (training/validation loss curves, accuracy curves, or bias evaluation plots). Save these generated images in the `results/` folder for persistence, copy/save them in the `rapport/rapport/` directory, and explicitly import them into `main.tex` using the `\begin{figure}` block and `\includegraphics` to provide a clear visual presentation of the results.
+
 
