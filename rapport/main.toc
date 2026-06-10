@@ -1,0 +1,16 @@
+\babel@toc {english}{}\relax 
+\contentsline {section}{\numberline {1}Partie I : Train state-of-the-art CNN models}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Question 2.1: Image Pre-processing and Data Augmentation}{1}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Question 2.2: Implement LeNet, AlexNet, ResNet, ScatteringCNN, and NBDT}{1}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Question 2.3: Train using Mini-Batch SGD}{1}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}Question 2.4: Parameter Tuning and Overfitting Prevention}{2}{subsection.1.4}%
+\contentsline {section}{\numberline {2}Partie II : Machine learning and AI safety}{4}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Question 3.1: Real-Life Bias Situation and Consequences}{4}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Question 3.2: Biased Dataset Construction}{4}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Questions 3.3, 3.4 \& 3.5: Bias Evaluation \& Fairness Metrics}{4}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Fairness Mitigation via Threshold Shifting}{5}{subsection.2.4}%
+\contentsline {section}{\numberline {3}Partie III : Adversarial Robustness and Defense}{7}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Question 4.1: Adversarial Attacks (FGSM vs. C\&W)}{7}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Question 4.2: Defensive Distillation}{7}{subsection.3.2}%
+\contentsline {section}{\numberline {4}Partie IV : Critical Essay on AI Trustworthiness}{8}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Can We Trust Our Model? An Analysis of Safety and Compliance}{8}{subsection.4.1}%

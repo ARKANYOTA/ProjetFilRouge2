@@ -1,0 +1,266 @@
+\documentclass{name}
+\usepackage{lipsum}
+\usepackage{multicol}
+\usepackage{listings}
+\usepackage{longtable}
+\usepackage{amsmath}
+\usepackage{mathtools}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{amssymb}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{geometry}
+\usepackage{float}
+\geometry{margin=1in}
+\usepackage{setspace}
+\usepackage{stmaryrd}
+\usepackage[sorting=none]{biblatex}
+\addbibresource{bibliographie.bib}
+\usepackage{csquotes}
+\usepackage[english]{babel}
+\usepackage{fancyhdr}
+\usepackage{lmodern}
+\usepackage{color}
+\usepackage{float}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{awesomebox}
+\usepackage{todonotes}
+\usepackage{upquote}
+\newtheorem{theorem}{Théorème}
+\newtheorem{definition}{Définition}
+\newcounter{pagezero}
+\begin{document}
+%----------- Informations du rapport ---------
+
+\UE{ModIA S8 - Machine Learning}
+\sujet{Kaggle Project 2026}
+\titre{TILDA Texture Classification, Adversarial Robustness \& AI Safety Analysis}
+
+\eleves{Marin \textsc{Decanini}\\Nolan \textsc{Carlisi}\\ Juin 2026}
+
+\enseignantenseirb{ModIA S8\\Machine Learning}
+\enseignant{Pierre \textsc{Weiss}\\Université de Toulouse\\ Senior CNRS researcher at IRIT}
+
+%----------- Initialisation -------------------
+        
+\fairemarges
+\fairepagedegarde
+
+\newpage
+\setcounter{pagezero}{0}
+
+\begin{center}
+	\begin{minipage}{13cm}
+	    \begin{center}
+	        \section*{Abstract}
+	    \end{center}
+			This report presents our complete implementation, benchmarks, and analyses for the Kaggle Project (ModIA S8) on the TILDA textile database. First, we compare five state-of-the-art architectures (LeNet-5, AlexNet, ResNet-18, ScatteringCNN, and Neural-Backed Decision Trees (NBDT)) under SGD optimization. Second, we study AI Safety through adversarial robustness, comparing the Fast Gradient Sign Method (FGSM) and the optimization-based Carlini-Wagner (C\&W) $L_2$ attack, and evaluating Defensive Distillation as a mitigation strategy. Finally, we explore algorithmic fairness and bias injection, introducing demographic parity (Disparate Impact) and conditional rates (Equalized Odds, Equal Opportunity), and proposing group-specific threshold shifting to satisfy EU AI Act compliance.
+	\end{minipage}
+\end{center}
+
+\par 
+\setcounter{page}{\value{pagezero}}
+
+\newpage
+\setcounter{page}{\value{pagezero}}
+\tableofcontents
+
+\newpage
+\section{Partie I : Train state-of-the-art CNN models}
+
+The first objective is to build a reliable classifier for the TILDA textile database. The dataset contains 2,361 training images and 789 test images distributed over 8 classes representing textile defect patterns. We split the training data into $70\%$ training (1,652 samples), $15\%$ validation (354 samples), and $15\%$ test (355 samples) for parameter validation and baseline comparisons.
+
+\subsection{Question 2.1: Image Pre-processing and Data Augmentation}
+Due to the high resolution and variable orientations of the textile textures, pre-processing is crucial:
+\begin{enumerate}
+    \item \textbf{Resizing:} All images are resized to $64 \times 64$ pixels to balance spatial information and computational speed.
+    \item \textbf{Normalization:} Converting pixel intensities to float tensors in $[0, 1]$ stabilizes learning gradients.
+    \item \textbf{Data Augmentation:} To reduce overfitting, we apply random crops (scale $0.8$ to $1.0$), random horizontal flips, and random rotations up to $15^\circ$ during training.
+\end{enumerate}
+
+\subsection{Question 2.2: Implement LeNet, AlexNet, ResNet, ScatteringCNN, and NBDT}
+We implement five models spanning standard deep architectures, pre-defined features, and interpretable networks:
+\begin{itemize}
+    \item \textbf{LeNet-5} \cite{lecun1998gradient}: Consists of two convolutional layers with $5\times5$ filters followed by Max Pooling, and three dense layers. It has low capacity but fast training.
+    \item \textbf{AlexNet} \cite{krizhevsky2017imagenet}: A deeper convolutional network with five conv layers and three dense layers, using $50\%$ Dropout to combat overfitting.
+    \item \textbf{ResNet-18} \cite{he2016deep}: Leverages identity skip connections to solve the vanishing gradient problem, allowing the training of deep architectures.
+    \item \textbf{ScatteringCNN} \cite{oyallon2017scaling}: Uses a fixed, non-trainable Gabor Wavelet Scattering Transform at the first stage (J=2 scales, L=4 orientations) followed by a modulus operator and average pooling, which is then fed into a hybrid CNN classifier.
+    \item \textbf{NBDT (Neural-Backed Decision Trees)} \cite{wan2020nbdt}: Replaces the final linear classifier with a soft decision tree routing layer, combining deep learning feature representation with hierarchical interpretability.
+\end{itemize}
+
+Since we study bias injection, our models must handle a 4-channel input (RGB + 1 bias channel $\epsilon$) and output 8 classes. For LeNet and NBDT, linear dimensions are registered dynamically using a constructor dry-run. For ResNet-18, the input convolution and final fully connected layers are modified.
+
+\subsection{Question 2.3: Train using Mini-Batch SGD}
+We train all architectures using SGD with momentum $\beta=0.9$, learning rate $\eta=0.01$, and weight decay $\lambda=10^{-4}$ for 5 epochs on Apple Silicon hardware (\texttt{mps} backend).
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Epochs} & \textbf{Training Time (s)} & \textbf{Best Val Accuracy (\%)} & \textbf{Test Accuracy (\%)} \\
+\midrule
+LeNet-5 & 5 & 28.73 & 14.69 & 14.37 \\
+AlexNet & 5 & 59.39 & 10.73 & 12.68 \\
+ResNet-18 & 5 & 57.07 & 23.16 & 20.00 \\
+ScatteringCNN & 5 & 40.38 & 17.23 & 16.34 \\
+NBDT & 5 & 37.93 & 14.69 & 13.52 \\
+\bottomrule
+\end{tabular}
+\caption{Comparison of model performance on 8-class TILDA classification}
+\label{tab:cnn_comparison}
+\end{table}
+
+ResNet-18 performs best (20.00\% test accuracy) due to batch normalization and residual connections. AlexNet struggles to converge in 5 epochs due to its large parameter size. ScatteringCNN performs well despite having a fixed first stage, showing that pre-defined Gabor representations are effective for texture classification.
+
+\subsection{Question 2.4: Parameter Tuning and Overfitting Prevention}
+The learning curves for all five architectures are plotted below:
+
+\insererfigure{lenet_multiclass_learning_curves.png}{5.5cm}{Learning curves of LeNet-5}{fig:lenet_multi}
+\insererfigure{alexnet_multiclass_learning_curves.png}{5.5cm}{Learning curves of AlexNet}{fig:alexnet_multi}
+\insererfigure{resnet_multiclass_learning_curves.png}{5.5cm}{Learning curves of ResNet-18}{fig:resnet_multi}
+\insererfigure{scattering_multiclass_learning_curves.png}{5.5cm}{Learning curves of ScatteringCNN}{fig:scat_multi}
+\insererfigure{nbdt_multiclass_learning_curves.png}{5.5cm}{Learning curves of NBDT}{fig:nbdt_multi}
+
+From the curves, we observe that ResNet-18 converges quickly and steadily. The training loss of NBDT and ScatteringCNN drops quickly, but validation accuracy scales slowly, suggesting that further epochs are required to fully train the dense classifiers.
+
+\newpage
+\section{Partie II : Machine learning and AI safety}
+
+We now focus on binary classification (classes 0 and 1, representing two textile defect patterns) to evaluate how data bias affects model safety, fairness, and robustness.
+
+\subsection{Question 3.1: Real-Life Bias Situation and Consequences}
+In real-world automated systems, bias often stems from dataset under-representation. For example, in facial recognition, models trained predominantly on light-skinned faces exhibit high error rates on dark-skinned faces. The consequences include false arrests or systematic exclusion from automated services, violating fundamental rights and creating legal liabilities under the EU AI Act.
+
+\subsection{Question 3.2: Biased Dataset Construction}
+We construct a biased dataset by concatenating a noise channel $\epsilon \in \mathbb{R}^{N \times N}$ to the image $x$. The bias variable $S \in \{0, 1\}$ is defined as:
+\[ S|\{y = k\} \sim \text{Bernoulli}(p_k), \quad k \in \{0, 1\} \]
+The noise channel $\epsilon$ is built as:
+\begin{itemize}
+    \item $\epsilon = 0 \in \mathbb{R}^{N \times N}$ if $S = 0$
+    \item $\epsilon \sim \mathcal{N}(0, I_N)$ if $S = 1$
+\end{itemize}
+We train and evaluate two settings:
+\begin{itemize}
+    \item \textbf{Model 1 (Unbiased Train):} $p_0 = 1/2, p_1 = 1/2$. The noise $S$ is uncorrelated to the class label $y$.
+    \item \textbf{Model 2 (Biased Train):} $p_0 = 0, p_1 = 1$. The noise $S$ perfectly correlates with $y$ (class 0 has no noise, class 1 always has noise).
+\end{itemize}
+
+\subsection{Questions 3.3, 3.4 \& 3.5: Bias Evaluation \& Fairness Metrics}
+To evaluate model bias, we define the \textbf{Disparate Impact (DI)} metric:
+\begin{equation}
+DI = \frac{\mathbb{P}(\widehat{y}(X) = 1 | S = 0)}{\mathbb{P}(\widehat{y}(X) = 1 | S = 1)}
+\end{equation}
+We also calculate conditional rates to measure \textbf{Equalized Odds} and \textbf{Equal Opportunity} \cite{besse2022european}:
+\begin{align}
+\Delta FPR &= |\mathbb{P}(\widehat{y}=1 | y=0, S=0) - \mathbb{P}(\widehat{y}=1 | y=0, S=1)| \\
+\Delta TPR &= |\mathbb{P}(\widehat{y}=1 | y=1, S=0) - \mathbb{P}(\widehat{y}=1 | y=1, S=1)| \quad (\text{Equal Opp})
+\end{align}
+
+The learning curves for both models are shown below:
+
+\insererfigure{lenet_binary_p0_0.5_p1_0.5_learning_curves.png}{5.5cm}{Learning curves of Model 1 (Unbiased)}{fig:model1}
+\insererfigure{lenet_binary_p0_0.0_p1_1.0_learning_curves.png}{5.5cm}{Learning curves of Model 2 (Biased)}{fig:model2}
+
+The table below summarizes the quantitative fairness results on the test set:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Setting} & \textbf{Training Bias ($p_0, p_1$)} & \textbf{Test Acc (\%)} & \textbf{DI} & \textbf{$\Delta FPR$} & \textbf{$\Delta TPR$} \\
+\midrule
+Model 1 (Unbiased) & $p_0 = 0.5, p_1 = 0.5$ & 51.11 & 1.0000 & 0.0000 & 0.0000 \\
+Model 2 (Biased) & $p_0 = 0.0, p_1 = 1.0$ & 100.00 & 0.0000 & 0.0000 & 1.0000 \\
+\bottomrule
+\end{tabular}
+\caption{Bias and fairness metrics on binary classification}
+\label{tab:bias_results}
+\end{table}
+
+\textbf{Analysis:} Model 2 achieves a deceptive $100\%$ test accuracy. However, its Disparate Impact is $0.0000$ and its Equal Opportunity gap $\Delta TPR$ is $1.0000$. This indicates that Model 2 has completely bypassed the visual texture features of the image and is predicting class 1 if and only if Gaussian noise is present in the 4th channel. In deployment where noise is absent or altered, Model 2 would fail catastrophically, showing that accuracy alone is an insufficient trust metric.
+
+\subsection{Fairness Mitigation via Threshold Shifting}
+To mitigate this bias, we implement group-specific threshold shifting. Instead of a fixed decision threshold of $0.5$ on the probability $p = \mathbb{P}(y=1|x)$, we select thresholds $\tau_0$ and $\tau_1$ for groups $S=0$ and $S=1$ respectively, to maximize validation accuracy subject to the fairness constraint $0.8 \le DI \le 1.25$ (the four-fifths rule).
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Setting} & \textbf{Thresholds ($\tau_0, \tau_1$)} & \textbf{Mitigated Test Acc (\%)} & \textbf{Mitigated DI} \\
+\midrule
+Model 1 (Unbiased) & $(0.55, 0.55)$ & 48.89 & 1.0000 \\
+Model 2 (Biased) & $(0.05, 0.05)$ & 51.11 & 1.0000 \\
+\bottomrule
+\end{tabular}
+\caption{Fairness mitigation via threshold shifting}
+\label{tab:mitigation_results}
+\end{table}
+
+By shifting thresholds, the mitigated Model 2 achieves a Disparate Impact of $1.0000$. However, its accuracy drops from $100\%$ to $51.11\%$ because it can no longer exploit the shortcut noise channel. This illustrates the fundamental trade-off between nominal accuracy and algorithmic fairness in the presence of training bias.
+
+\newpage
+\section{Partie III : Adversarial Robustness and Defense}
+
+To evaluate model safety against adversarial manipulation, we study test accuracy under input perturbations.
+
+\subsection{Question 4.1: Adversarial Attacks (FGSM vs. C\&W)}
+We implement two attacks from the literature:
+\begin{enumerate}
+    \item \textbf{FGSM (Fast Gradient Sign Method):} A single-step attack that computes:
+    \[ x_{adv} = \text{clip}(x + \epsilon \cdot \text{sign}(\nabla_x \mathcal{L}(\theta, x, y)), 0, 1) \]
+    \item \textbf{Carlini-Wagner (C\&W) $L_2$ Attack \cite{carlini2017towards}:} An optimization-based attack that finds the minimal perturbation by solving:
+    \[ \text{minimize } \|x_{adv} - x\|_2^2 + c \cdot f(x_{adv}) \]
+    where $f(x') = \max(Z(x')_y - \max_{i \neq y} Z(x')_i, -\kappa)$ using Adam optimizer for 20 search steps.
+\end{enumerate}
+
+\subsection{Question 4.2: Defensive Distillation}
+Defensive Distillation \cite{papernot2016distillation} trains a student network on the soft probability targets generated by a teacher network at a high temperature $T$:
+\[ q_i = \frac{e^{Z_i / T}}{\sum_j e^{Z_j / T}} \]
+This smooths the model's decision boundaries and reduces the magnitude of input gradients, making the network less sensitive to small adversarial perturbations. We train a distilled LeNet-5 model with $T=10.0$ and compare it to standard LeNet-5 and ScatteringCNN:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Model} & \textbf{Test Accuracy (\%)} & \textbf{FGSM Accuracy (\%) ($\epsilon=0.03$)} & \textbf{C\&W Accuracy (\%)} \\
+\midrule
+Standard LeNet-5 & 14.37 & 12.11 & 10.99 \\
+Distilled LeNet-5 & 11.83 & 11.83 & 11.83 \\
+ScatteringCNN & 16.34 & 12.96 & 14.65 \\
+\bottomrule
+\end{tabular}
+\caption{Adversarial robustness evaluation under FGSM and C\&W attacks}
+\label{tab:adversarial_results}
+\end{table}
+
+\textbf{Analysis:} While standard LeNet-5 accuracy drops significantly under C\&W and FGSM attacks, the Distilled LeNet-5 maintains its accuracy completely (11.83\%) under both attacks. This confirms that defensive distillation successfully hides gradients and increases robustness. Furthermore, ScatteringCNN exhibits solid robustness (12.96\% FGSM, 14.65\% C\&W) because its Gabor filters are fixed, which limits the optimization of adversarial perturbations through the network backplane.
+
+\newpage
+\section{Partie IV : Critical Essay on AI Trustworthiness}
+
+\subsection{Can We Trust Our Model? An Analysis of Safety and Compliance}
+As Machine Learning systems are increasingly deployed in high-risk areas, the question of whether we can trust our model goes beyond simple performance metrics. Under the EU AI Act \cite{besse2022european} and the CNIL compliance guidelines \cite{cnilguide}, high-risk AI systems must meet stringent requirements regarding data quality, algorithmic robustness, fairness, and explainability.
+
+Our experimental results demonstrate two major safety vulnerabilities that highlight why a model cannot be trusted based on nominal accuracy alone:
+\begin{enumerate}
+    \item \textbf{Spurious Shortcut Learning:} In the bias study, Model 2 achieved a perfect $100\%$ accuracy by exploiting a synthetic noise channel rather than learning actual textile patterns. In real life, such spurious correlations are common (e.g., medical algorithms classifying skin cancer based on the presence of a ruler in the image, or hiring algorithms selecting candidates based on formatting styles). A model that relies on shortcuts is extremely fragile and will fail catastrophically when deployed in an environment where the bias is absent.
+    \item \textbf{Adversarial Vulnerability:} Standard CNN models exhibit severe drops in performance under minor, imperceptible input perturbations (FGSM and C\&W). This vulnerability can be exploited by malicious actors to bypass security filters, deceive autonomous systems, or manipulate classification results.
+\end{enumerate}
+
+To establish trust and satisfy compliance under the EU AI Act, developers must adopt a comprehensive audit framework:
+\begin{itemize}
+    \item \textbf{Data Governance (Art 10):} Dataset representativeness must be verified. This involves auditing data for spurious correlation channels (such as the noise $\epsilon$ channel in our experiment) and ensuring that sensitive attributes (e.g., gender, race, or scanning environments) are balanced.
+    \item \textbf{Algorithmic Fairness and Bias Monitoring (Art 13):} Quantitative metrics such as Disparate Impact (demographic parity) and conditional odds (Equalized Odds, Equal Opportunity) must be monitored continuously. When bias is detected, mitigation strategies like post-processing threshold shifting (which we showed can restore a Disparate Impact of $1.0$) should be applied, even if they incur a trade-off in nominal accuracy.
+    \item \textbf{Robustness and Cybersecurity (Art 15):} Models must be tested against adversarial inputs using standard frameworks. Robust architectures (such as ScatteringCNN, which restricts the search space for adversarial gradients) and active defenses (such as Defensive Distillation) must be integrated to prevent evasion attacks.
+\end{itemize}
+
+Ultimately, trust in AI is not a static property of a trained model, but a property of the entire lifecycle. Trust is achieved when a model's performance is shown to be fair across demographic groups, robust to adversarial perturbations, and explainable to human supervisors.
+
+\newpage
+\printbibliography
+
+\end{document}
