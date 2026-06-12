@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import torch
 import torch.nn as nn
 
@@ -181,17 +183,9 @@ class _BasicBlock(nn.Module):
         return result
 
 
-class ResNet18(nn.Module):
-    """ResNet-18 from *Deep Residual Learning for Image Recognition*
+class ResNet(nn.Module):
+    """ResNet architecture from *Deep Residual Learning for Image Recognition*
     (He et al., 2016).
-
-    Architecture (Table 1, 18-layer column):
-        conv1:   7×7, 64 filters, stride 2 → BN → ReLU → 3×3 max-pool stride 2
-        conv2_x: 2 × BasicBlock(64)
-        conv3_x: 2 × BasicBlock(128), first block stride 2
-        conv4_x: 2 × BasicBlock(256), first block stride 2
-        conv5_x: 2 × BasicBlock(512), first block stride 2
-        Global average pooling → FC(num_classes)
 
     Key features:
     - Shortcut connections (§3.2): identity mapping y = F(x) + x
@@ -200,24 +194,24 @@ class ResNet18(nn.Module):
     - No dropout (§3.4: "We do not use dropout, following [16]")
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, layers: list[int]) -> None:
         super().__init__()
         c_in = settings.in_channels
         n_cls = settings.num_classes
         self.in_planes = 64
 
-        # conv1: "7×7, 64, stride 2" (Table 1)
+        # conv1: "7×7, 64, stride 2"
         self.conv1 = nn.Conv2d(c_in, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        # "3×3 max pool, stride 2" (Table 1)
+        # "3×3 max pool, stride 2"
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
 
-        # Residual layers (Table 1, 18-layer column)
-        self.layer1 = self._make_layer(64, blocks=2, stride=1)
-        self.layer2 = self._make_layer(128, blocks=2, stride=2)
-        self.layer3 = self._make_layer(256, blocks=2, stride=2)
-        self.layer4 = self._make_layer(512, blocks=2, stride=2)
+        # Residual layers
+        self.layer1 = self._make_layer(64, blocks=layers[0], stride=1)
+        self.layer2 = self._make_layer(128, blocks=layers[1], stride=2)
+        self.layer3 = self._make_layer(256, blocks=layers[2], stride=2)
+        self.layer4 = self._make_layer(512, blocks=layers[3], stride=2)
 
         # "the network ends with a global average pooling layer" (§3.3)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
@@ -246,12 +240,12 @@ class ResNet18(nn.Module):
                 nn.BatchNorm2d(planes * _BasicBlock.expansion),
             )
 
-        layers: list[nn.Module] = [_BasicBlock(self.in_planes, planes, stride, downsample)]
+        layers_: list[nn.Module] = [_BasicBlock(self.in_planes, planes, stride, downsample)]
         self.in_planes = planes * _BasicBlock.expansion
         for _ in range(1, blocks):
-            layers.append(_BasicBlock(self.in_planes, planes))
+            layers_.append(_BasicBlock(self.in_planes, planes))
 
-        return nn.Sequential(*layers)
+        return nn.Sequential(*layers_)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.relu(self.bn1(self.conv1(x)))
@@ -268,13 +262,22 @@ class ResNet18(nn.Module):
         return result
 
 
+def resnet18(settings: Settings) -> ResNet:
+    return ResNet(settings, [2, 2, 2, 2])
+
+
+def resnet34(settings: Settings) -> ResNet:
+    return ResNet(settings, [3, 4, 6, 3])
+
+
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
-_MODEL_REGISTRY: dict[str, type[nn.Module]] = {
+_MODEL_REGISTRY: dict[str, Callable[[Settings], nn.Module]] = {
     "lenet5": LeNet5,
     "alexnet": AlexNet,
-    "resnet18": ResNet18,
+    "resnet18": resnet18,
+    "resnet34": resnet34,
 }
 
 

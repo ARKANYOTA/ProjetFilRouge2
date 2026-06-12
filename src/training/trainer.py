@@ -40,21 +40,41 @@ class Trainer:
         self.settings = settings
         self.device = settings.resolve_device()
 
-        # Optimizer: mini-batch SGD (Q2.3)
-        self.optimizer = torch.optim.SGD(
-            self.model.parameters(),
-            lr=settings.learning_rate,
-            momentum=settings.momentum,
-            weight_decay=settings.weight_decay,
-        )
-        self.criterion = nn.CrossEntropyLoss()
-        self.scheduler = ReduceLROnPlateau(
-            self.optimizer,
-            mode="min",
-            factor=settings.scheduler_factor,
-            patience=settings.scheduler_patience,
-            verbose=False,
-        )
+        # Optimizer
+        self.optimizer: torch.optim.Optimizer
+        if getattr(settings, "optimizer_name", "sgd") == "adamw":
+            self.optimizer = torch.optim.AdamW(
+                self.model.parameters(),
+                lr=settings.learning_rate,
+                weight_decay=settings.weight_decay,
+            )
+        else:
+            self.optimizer = torch.optim.SGD(
+                self.model.parameters(),
+                lr=settings.learning_rate,
+                momentum=settings.momentum,
+                weight_decay=settings.weight_decay,
+            )
+
+        label_smoothing = getattr(settings, "label_smoothing", 0.0)
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=label_smoothing)
+
+        self.scheduler: torch.optim.lr_scheduler.LRScheduler | ReduceLROnPlateau
+        if getattr(settings, "scheduler_name", "plateau") == "onecycle":
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(
+                self.optimizer,
+                max_lr=settings.learning_rate,
+                steps_per_epoch=len(self.train_loader),
+                epochs=settings.epochs,
+            )
+        else:
+            self.scheduler = ReduceLROnPlateau(
+                self.optimizer,
+                mode="min",
+                factor=settings.scheduler_factor,
+                patience=settings.scheduler_patience,
+                verbose=False,
+            )
 
         # History
         self.history: dict[str, list[float]] = {
@@ -83,7 +103,12 @@ class Trainer:
             outputs = self.model(inputs)
             loss = self.criterion(outputs, targets)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.optimizer.step()
+            if getattr(self.settings, "scheduler_name", "plateau") == "onecycle" and isinstance(
+                self.scheduler, torch.optim.lr_scheduler.OneCycleLR
+            ):
+                self.scheduler.step()
 
             total_loss += loss.item() * inputs.size(0)
             _, predicted = outputs.max(1)
@@ -142,7 +167,10 @@ class Trainer:
             val_loss, val_acc = self.validate()
 
             current_lr = self.optimizer.param_groups[0]["lr"]
-            self.scheduler.step(val_loss)
+            if getattr(self.settings, "scheduler_name", "plateau") == "plateau" and isinstance(
+                self.scheduler, ReduceLROnPlateau
+            ):
+                self.scheduler.step(val_loss)
 
             self.history["train_loss"].append(train_loss)
             self.history["train_acc"].append(train_acc)

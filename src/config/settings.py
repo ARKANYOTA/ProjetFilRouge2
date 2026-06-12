@@ -18,28 +18,33 @@ class Settings(BaseSettings):
     num_classes: int = 8
 
     # Model settings
-    model_name: str = "resnet18"
+    model_name: str = "resnet34"
     pretrained: bool = False
 
     # Training settings
     batch_size: int = 32
-    learning_rate: float = 0.01
-    epochs: int = 50
+    learning_rate: float = 1e-3  # max_lr for OneCycleLR
+    epochs: int = 100
     seed: int = 42
     device: str = "auto"
 
-    # SGD hyper-parameters (AlexNet §5: momentum 0.9, wd 5e-4; ResNet §3.4: momentum 0.9, wd 1e-4)
+    # Optimizer choices
+    optimizer_name: str = "adamw"  # 'sgd' or 'adamw'
+    scheduler_name: str = "onecycle"  # 'plateau' or 'onecycle'
+
+    # SGD hyper-parameters
     momentum: float = 0.9
-    weight_decay: float = 5e-4
+    weight_decay: float = 1e-2  # Decoupled weight decay for AdamW
 
     # Regularisation
-    dropout_rate: float = 0.5  # AlexNet §4.2
+    dropout_rate: float = 0.5
+    label_smoothing: float = 0.1
 
     # Validation
     val_split: float = 0.2
-    patience: int = 10
+    patience: int = 20
 
-    # Learning-rate scheduler (AlexNet §5 / ResNet §3.4: "divided by 10 when error plateaus")
+    # Learning-rate scheduler (Plateau)
     scheduler_factor: float = 0.1
     scheduler_patience: int = 5
 

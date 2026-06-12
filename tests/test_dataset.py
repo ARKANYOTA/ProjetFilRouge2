@@ -48,8 +48,10 @@ def test_biased_dataset_channels() -> None:
     import csv
     import os
     import tempfile
+
     from PIL import Image
     from torchvision import transforms as tv_transforms
+
     from src.data.dataset import BiasedDataset, TILDADataset
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -88,4 +90,3 @@ def test_biased_dataset_channels() -> None:
         assert x1.shape == (2, 224, 224)
         assert y1 == 0
         assert float(x1[1].var()) > 0.1
-

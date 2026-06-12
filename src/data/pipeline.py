@@ -21,13 +21,16 @@ def build_transforms(settings: Settings, is_train: bool = True) -> transforms.Co
     if is_train:
         return transforms.Compose(
             [
-                transforms.Resize((settings.image_size, settings.image_size)),
+                transforms.RandomResizedCrop(
+                    (settings.image_size, settings.image_size), scale=(0.8, 1.0)
+                ),
                 transforms.RandomHorizontalFlip(0.5),
                 transforms.RandomVerticalFlip(0.5),
-                transforms.RandomRotation(15),
+                transforms.RandomRotation(45),
                 transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.5], std=[0.5]),
+                transforms.RandomErasing(p=0.2),
             ]
         )
     return transforms.Compose(

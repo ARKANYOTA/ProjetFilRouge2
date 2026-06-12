@@ -22,7 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ALL_MODELS = ("lenet5", "alexnet", "resnet18")
+ALL_MODELS = ("lenet5", "alexnet", "resnet18", "resnet34")
 
 
 def _train_single(model_name: str, settings: Settings) -> dict[str, list[float] | float]:
