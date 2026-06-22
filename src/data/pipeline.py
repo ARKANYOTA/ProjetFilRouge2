@@ -119,3 +119,8 @@ class _TransformSubset(Dataset[tuple[object, object]]):
         image = Image.open(img_path).convert("L")
         tensor = self.transform(image)
         return tensor, label
+
+    @property
+    def labels(self) -> list[int]:
+        """Return labels in subset order without loading or augmenting images."""
+        return [self.dataset.samples[index][1] for index in self.indices]

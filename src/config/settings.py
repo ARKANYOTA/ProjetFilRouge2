@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,6 +53,12 @@ class Settings(BaseSettings):
     # DataLoader
     num_workers: int = 0
 
+    # Persisted artefacts and Kaggle prediction
+    results_dir: str = "results"
+    checkpoint_path: str | None = None
+    submission_path: str | None = None
+    submission_delimiter: Literal[";", ","] = ";"
+
     # Bias evaluation settings (Part 3)
     p0: float = 0.5
     p1: float = 0.5
@@ -78,3 +86,15 @@ class Settings(BaseSettings):
         if torch.cuda.is_available():
             return torch.device("cuda")
         return torch.device("cpu")
+
+    def get_resolved_checkpoint_path(self) -> str:
+        """Return the configured checkpoint or the model's default checkpoint."""
+        if self.checkpoint_path:
+            return self.checkpoint_path
+        return f"{self.results_dir}/{self.model_name}_best.pt"
+
+    def get_resolved_submission_path(self) -> str:
+        """Return the configured submission path or a model-specific default."""
+        if self.submission_path:
+            return self.submission_path
+        return f"{self.results_dir}/kaggle_submission_{self.model_name}.csv"

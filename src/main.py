@@ -8,7 +8,7 @@ from src.config.settings import Settings
 from src.data.pipeline import build_dataloaders
 from src.evaluation.metrics import (
     export_results_json,
-    plot_model_comparison,
+    plot_results_summary,
     plot_training_curves,
 )
 from src.models.cnn import get_model
@@ -64,16 +64,22 @@ def main() -> int:
     logger.info("Device: %s", settings.resolve_device())
 
     models_to_train = ALL_MODELS if args.model == "all" else (args.model,)
-    all_results: dict[str, dict[str, object]] = {}
+    all_results: dict[str, dict[str, list[float] | float]] = {}
 
     for model_name in models_to_train:
         history = _train_single(model_name, settings)
-        all_results[model_name] = history  # type: ignore[assignment]
+        all_results[model_name] = history
 
-    if len(all_results) > 1:
-        plot_model_comparison(all_results)
-
-    export_results_json(all_results)
+    run_metadata: dict[str, object] = {
+        "optimizer": settings.optimizer_name,
+        "scheduler": settings.scheduler_name,
+        "learning_rate": settings.learning_rate,
+        "batch_size": settings.batch_size,
+        "weight_decay": settings.weight_decay,
+        "label_smoothing": settings.label_smoothing,
+    }
+    summary = export_results_json(all_results, run_metadata)
+    plot_results_summary(summary)
     logger.info("All done. Results saved to results/")
     return 0
 

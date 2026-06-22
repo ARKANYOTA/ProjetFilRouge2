@@ -2,12 +2,20 @@ from __future__ import annotations
 
 import csv
 import os
+from collections.abc import Sized
 from pathlib import Path
+from typing import Protocol, runtime_checkable
 
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+
+
+@runtime_checkable
+class _HasLabels(Protocol):
+    @property
+    def labels(self) -> list[int]: ...
 
 
 class TILDADataset(Dataset[tuple[torch.Tensor, int]]):
@@ -47,11 +55,13 @@ class TILDADataset(Dataset[tuple[torch.Tensor, int]]):
                         self.samples.append((os.path.join(img_dir, fname), label))
         else:
             img_dir = os.path.join(root_dir, "test")
-            self.samples = [
-                (os.path.join(img_dir, fname), -1)
-                for fname in sorted(Path(img_dir).iterdir())
-                if fname.suffix == ".tif"
-            ]
+            image_paths = [path for path in Path(img_dir).iterdir() if path.suffix == ".tif"]
+            try:
+                image_paths.sort(key=lambda path: int(path.stem))
+            except ValueError as exc:
+                msg = "Test image filenames must have numeric stems (for example, 42.tif)"
+                raise ValueError(msg) from exc
+            self.samples = [(str(path), -1) for path in image_paths]
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -72,6 +82,11 @@ class TILDADataset(Dataset[tuple[torch.Tensor, int]]):
         """Return all labels (useful for stratified splitting)."""
         return [label for _, label in self.samples]
 
+    @property
+    def sample_ids(self) -> list[str]:
+        """Return image IDs in dataset order, without filename extensions."""
+        return [Path(path).stem for path, _ in self.samples]
+
 
 class BiasedDataset(Dataset[tuple[torch.Tensor, int]]):
     """Wrapper that appends a bias channel *epsilon* to each image.
@@ -89,7 +104,11 @@ class BiasedDataset(Dataset[tuple[torch.Tensor, int]]):
         p1: float,
         seed: int | None = None,
     ) -> None:
+        if not isinstance(base_dataset, Sized):
+            msg = "BiasedDataset requires a base dataset with a finite length"
+            raise TypeError(msg)
         self.base_dataset = base_dataset
+        self._length = len(base_dataset)
         self.p0 = p0
         self.p1 = p1
         self.rng = torch.Generator()
@@ -98,22 +117,14 @@ class BiasedDataset(Dataset[tuple[torch.Tensor, int]]):
 
         # Pre-compute S values for reproducibility
         self._s_values: list[int] = []
-        labels: list[int] = []
+        labels: list[int]
 
-        if hasattr(base_dataset, "indices") and hasattr(base_dataset, "dataset"):
-            # it's a _TransformSubset
-            indices: list[int] = base_dataset.indices
-            dataset: TILDADataset = base_dataset.dataset
-            for idx in indices:
-                labels.append(dataset.samples[idx][1])
-        elif hasattr(base_dataset, "samples"):
-            # it's a TILDADataset
-            tilda_ds: TILDADataset = base_dataset  # type: ignore[assignment]
-            for _, lbl in tilda_ds.samples:
-                labels.append(lbl)
+        if isinstance(base_dataset, _HasLabels):
+            labels = base_dataset.labels
         else:
             # Fallback: sequentially load labels
-            for idx in range(len(base_dataset)):  # type: ignore[arg-type]
+            labels = []
+            for idx in range(self._length):
                 item = base_dataset[idx]
                 lbl_val = item[1]
                 assert isinstance(lbl_val, int)
@@ -125,7 +136,7 @@ class BiasedDataset(Dataset[tuple[torch.Tensor, int]]):
             self._s_values.append(s)
 
     def __len__(self) -> int:
-        return len(self.base_dataset)  # type: ignore[arg-type]
+        return self._length
 
     def __getitem__(self, idx: int) -> tuple[torch.Tensor, int]:
         res = self.base_dataset[idx]

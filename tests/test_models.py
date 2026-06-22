@@ -3,7 +3,7 @@ from __future__ import annotations
 import torch
 
 from src.config.settings import Settings
-from src.models.cnn import AlexNet, LeNet5, ResNet, get_model, resnet18
+from src.models.cnn import AlexNet, LeNet5, ResNet, get_model, resnet18, resnet34
 
 
 def _make_settings(**overrides: object) -> Settings:
@@ -14,7 +14,7 @@ def _make_settings(**overrides: object) -> Settings:
         "device": "cpu",
     }
     defaults.update(overrides)
-    return Settings(**defaults)  # type: ignore[arg-type]
+    return Settings.model_validate(defaults)
 
 
 def test_lenet5_forward_shape() -> None:
@@ -44,9 +44,23 @@ def test_resnet18_forward_shape() -> None:
     assert out.shape == (2, 8)
 
 
+def test_resnet34_forward_shape() -> None:
+    """ResNet-34 produces (batch, num_classes) output."""
+    s = _make_settings()
+    model = resnet34(s)
+    x = torch.randn(2, 1, 224, 224)
+    out = model(x)
+    assert out.shape == (2, 8)
+
+
 def test_get_model_factory() -> None:
     """get_model dispatches correctly for each registered name."""
-    for name, cls in [("lenet5", LeNet5), ("alexnet", AlexNet), ("resnet18", ResNet)]:
+    for name, cls in [
+        ("lenet5", LeNet5),
+        ("alexnet", AlexNet),
+        ("resnet18", ResNet),
+        ("resnet34", ResNet),
+    ]:
         s = _make_settings(model_name=name)
         model = get_model(s)
         assert isinstance(model, cls)
@@ -55,7 +69,7 @@ def test_get_model_factory() -> None:
 def test_models_accept_3_channels() -> None:
     """Models can be instantiated with 3 input channels (for bias part)."""
     s = _make_settings(in_channels=3)
-    for name in ("lenet5", "alexnet", "resnet18"):
+    for name in ("lenet5", "alexnet", "resnet18", "resnet34"):
         s_copy = s.model_copy(update={"model_name": name})
         model = get_model(s_copy)
         x = torch.randn(2, 3, 224, 224)

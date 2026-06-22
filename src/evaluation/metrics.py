@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import matplotlib
@@ -92,26 +93,45 @@ def plot_training_curves(
     plt.close(fig)
 
 
-def plot_model_comparison(all_results: dict[str, dict[str, object]]) -> None:
-    """Bar chart comparing val accuracy and training time across models."""
+def _summarize_histories(
+    all_results: Mapping[str, Mapping[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Reduce full training histories to persisted comparison metrics."""
+    summary: dict[str, dict[str, object]] = {}
+    for name, result in all_results.items():
+        val_accuracy = result["val_acc"]
+        train_accuracy = result["train_acc"]
+        assert isinstance(val_accuracy, list)
+        assert isinstance(train_accuracy, list)
+        summary[name] = {
+            "best_val_acc": max(val_accuracy),
+            "best_train_acc": max(train_accuracy),
+            "training_time_s": result.get("training_time"),
+            "epochs_trained": len(val_accuracy),
+        }
+    return summary
+
+
+def plot_results_summary(summary: dict[str, dict[str, object]]) -> None:
+    """Bar chart comparing persisted validation accuracy and training time."""
     _FIGURES_DIR.mkdir(parents=True, exist_ok=True)
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    names = list(all_results.keys())
-    val_accs = []
-    train_times = []
+    names = list(summary.keys())
+    val_accs: list[float] = []
+    train_times: list[float] = []
     for name in names:
-        res = all_results[name]
-        va = res["val_acc"]
-        assert isinstance(va, list)
-        val_accs.append(max(va))
-        tt = res["training_time"]
-        assert isinstance(tt, float | int)
-        train_times.append(tt)
+        result = summary[name]
+        val_accuracy = result["best_val_acc"]
+        training_time = result["training_time_s"]
+        assert isinstance(val_accuracy, float | int)
+        assert isinstance(training_time, float | int)
+        val_accs.append(float(val_accuracy))
+        train_times.append(float(training_time))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
 
-    colours = ["#4C72B0", "#55A868", "#C44E52"]
+    colours = ["#4C72B0", "#55A868", "#C44E52", "#8172B2"]
     ax1.bar(names, [a * 100 for a in val_accs], color=colours[: len(names)])
     ax1.set_ylabel("Best Val Accuracy (%)")
     ax1.set_title("Model Comparison — Accuracy")
@@ -131,26 +151,36 @@ def plot_model_comparison(all_results: dict[str, dict[str, object]]) -> None:
     plt.close(fig)
 
 
+def plot_model_comparison(all_results: Mapping[str, Mapping[str, object]]) -> None:
+    """Bar chart comparing validation accuracy and time from full histories."""
+    plot_results_summary(_summarize_histories(all_results))
+
+
 def export_results_json(
-    all_results: dict[str, dict[str, object]],
-) -> None:
-    """Persist experiment results to ``results/comparison_results.json``."""
+    all_results: Mapping[str, Mapping[str, object]],
+    run_metadata: Mapping[str, object] | None = None,
+) -> dict[str, dict[str, object]]:
+    """Merge experiment summaries into ``results/comparison_results.json``."""
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    out: dict[str, dict[str, object]] = {}
-    for name, res in all_results.items():
-        va = res.get("val_acc")
-        ta = res.get("train_acc")
-        assert isinstance(va, list)
-        assert isinstance(ta, list)
-        out[name] = {
-            "best_val_acc": max(va),
-            "best_train_acc": max(ta),
-            "training_time_s": res.get("training_time"),
-            "epochs_trained": len(va),
-        }
     path = _RESULTS_DIR / "comparison_results.json"
+    out: dict[str, dict[str, object]] = {}
+    if path.is_file():
+        with path.open(encoding="utf-8") as file:
+            existing: object = json.load(file)
+        if not isinstance(existing, dict):
+            msg = f"Expected a JSON object in {path}"
+            raise ValueError(msg)
+        for name, result in existing.items():
+            if isinstance(name, str) and isinstance(result, dict):
+                out[name] = {str(key): value for key, value in result.items()}
+
+    for name, metrics in _summarize_histories(all_results).items():
+        out[name] = {**out.get(name, {}), **metrics, **(run_metadata or {})}
+
     with open(path, "w") as f:
         json.dump(out, f, indent=2)
+        f.write("\n")
+    return out
 
 
 def plot_bias_evaluation(
