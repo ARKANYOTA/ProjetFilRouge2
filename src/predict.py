@@ -86,12 +86,33 @@ def build_test_loader(
     return dataset, loader
 
 
+def _tta_probabilities(model: nn.Module, inputs: torch.Tensor) -> torch.Tensor:
+    """Average softmax over the original image and its horizontal/vertical flips.
+
+    Flips are label-preserving for textile textures, so averaging their
+    predictions reduces variance without introducing bias.
+    """
+    views = (
+        inputs,
+        torch.flip(inputs, dims=[3]),  # horizontal
+        torch.flip(inputs, dims=[2]),  # vertical
+        torch.flip(inputs, dims=[2, 3]),  # both
+    )
+    summed: torch.Tensor | None = None
+    for view in views:
+        probs = torch.softmax(model(view), dim=1)
+        summed = probs if summed is None else summed + probs
+    assert summed is not None
+    return summed / len(views)
+
+
 @torch.no_grad()
 def predict(
     model: nn.Module,
     loader: DataLoader[tuple[object, object]],
     sample_ids: Sequence[str],
     device: torch.device,
+    use_tta: bool = False,
 ) -> list[Prediction]:
     """Run deterministic inference and retain top-two confidence values."""
     model.eval()
@@ -100,7 +121,11 @@ def predict(
 
     for inputs, _ in loader:
         assert isinstance(inputs, torch.Tensor)
-        probabilities = torch.softmax(model(inputs.to(device)), dim=1)
+        batch = inputs.to(device)
+        if use_tta:
+            probabilities = _tta_probabilities(model, batch)
+        else:
+            probabilities = torch.softmax(model(batch), dim=1)
         top_probabilities, top_labels = probabilities.topk(k=2, dim=1)
 
         for row_index in range(inputs.size(0)):
@@ -274,7 +299,7 @@ def generate_submission(settings: Settings) -> tuple[Path, Path, Path, Validatio
         weights_only=True,
     )
     model.load_state_dict(state_dict)
-    predictions = predict(model, loader, dataset.sample_ids, device)
+    predictions = predict(model, loader, dataset.sample_ids, device, use_tta=settings.use_tta)
 
     audit_path = submission_path.with_name(f"{submission_path.stem}_audit.csv")
     manifest_path = submission_path.with_name(f"{submission_path.stem}_manifest.json")
@@ -316,6 +341,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="CSV delimiter (default: settings value, currently semicolon)",
     )
     parser.add_argument(
+        "--tta",
+        action="store_true",
+        help="Average predictions over horizontal/vertical flips (test-time augmentation)",
+    )
+    parser.add_argument(
         "--validate-only",
         metavar="CSV_PATH",
         help="Validate an existing CSV without loading a model or running inference",
@@ -337,6 +367,8 @@ def main() -> int:
         updates["device"] = args.device
     if args.delimiter is not None:
         updates["submission_delimiter"] = args.delimiter
+    if args.tta:
+        updates["use_tta"] = True
     settings = Settings().model_copy(update=updates)
 
     try:

@@ -21,7 +21,16 @@ class Settings(BaseSettings):
 
     # Model settings
     model_name: str = "resnet34"
-    pretrained: bool = False
+    pretrained: bool = False  # kept for API compatibility; project trains from scratch only
+
+    # ConvNeXt-from-scratch architecture (Liu et al. 2022, "A ConvNet for the 2020s")
+    # Sized down from ConvNeXt-Tiny (depths [3,3,9,3], dims [96,192,384,768]) to suit
+    # the small TILDA training set (1,888 images) and avoid overfitting.
+    convnext_depths: tuple[int, int, int, int] = (3, 3, 9, 3)
+    convnext_dims: tuple[int, int, int, int] = (64, 128, 256, 512)
+    drop_path_rate: float = 0.1  # max stochastic-depth probability (linearly scaled by block depth)
+    layer_scale_init: float = 1e-6  # LayerScale gamma initial value (0 disables LayerScale)
+    head_dropout: float = 0.0  # dropout before the classification head
 
     # Training settings
     batch_size: int = 32
@@ -32,7 +41,17 @@ class Settings(BaseSettings):
 
     # Optimizer choices
     optimizer_name: str = "adamw"  # 'sgd' or 'adamw'
-    scheduler_name: str = "onecycle"  # 'plateau' or 'onecycle'
+    scheduler_name: str = "onecycle"  # 'plateau', 'onecycle', or 'cosine'
+    warmup_epochs: int = 0  # linear LR warm-up epochs (used by the 'cosine' scheduler)
+    min_lr_ratio: float = 1e-2  # cosine floor as a fraction of the base learning rate
+
+    # Modern training recipe (opt-in; disabled by default so baselines are unchanged)
+    mixup_alpha: float = 0.0  # Beta(alpha, alpha) for MixUp; 0 disables
+    cutmix_alpha: float = 0.0  # Beta(alpha, alpha) for CutMix; 0 disables
+    mixup_switch_prob: float = 0.5  # probability of choosing CutMix over MixUp when both enabled
+    use_ema: bool = False  # maintain an exponential-moving-average copy of the weights
+    ema_decay: float = 0.999  # EMA decay factor
+    checkpoint_metric: Literal["loss", "acc"] = "loss"  # metric used to select the best checkpoint
 
     # SGD hyper-parameters
     momentum: float = 0.9
@@ -54,6 +73,7 @@ class Settings(BaseSettings):
     num_workers: int = 0
 
     # Persisted artefacts and Kaggle prediction
+    use_tta: bool = False  # test-time augmentation (average over flips) at inference
     results_dir: str = "results"
     checkpoint_path: str | None = None
     submission_path: str | None = None
@@ -62,6 +82,41 @@ class Settings(BaseSettings):
     # Bias evaluation settings (Part 3)
     p0: float = 0.5
     p1: float = 0.5
+
+    @classmethod
+    def convnext_recipe(cls) -> Settings:
+        """Return the from-scratch ConvNeXt training recipe.
+
+        Centralises every hyper-parameter for the headline accuracy experiment
+        (no pretrained weights): AdamW + cosine schedule with warm-up, MixUp +
+        CutMix, EMA, label smoothing, stochastic depth and head dropout.  Values
+        not listed here fall back to the environment / defaults (e.g. dataset
+        path).  Override individual fields with :meth:`model_copy`.
+        """
+        return cls().model_copy(
+            update={
+                "model_name": "convnext",
+                "in_channels": 1,
+                "optimizer_name": "adamw",
+                "scheduler_name": "cosine",
+                "learning_rate": 2e-3,
+                "weight_decay": 0.05,
+                "epochs": 200,
+                "warmup_epochs": 20,
+                "min_lr_ratio": 1e-2,
+                "mixup_alpha": 0.2,
+                "cutmix_alpha": 1.0,
+                "mixup_switch_prob": 0.5,
+                "use_ema": True,
+                "ema_decay": 0.999,
+                "label_smoothing": 0.1,
+                "head_dropout": 0.1,
+                "drop_path_rate": 0.1,
+                "checkpoint_metric": "acc",
+                "patience": 200,
+                "batch_size": 32,
+            }
+        )
 
     def get_resolved_dataset_path(self) -> str:
         if self.dataset_path:

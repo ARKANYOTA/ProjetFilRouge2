@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import torch
 import torch.nn as nn
+from torchvision.ops import StochasticDepth
 
 from src.config.settings import Settings
 
@@ -271,6 +272,147 @@ def resnet34(settings: Settings) -> ResNet:
 
 
 # ---------------------------------------------------------------------------
+# ConvNeXt  (Liu et al., 2022 — "A ConvNet for the 2020s")
+# ---------------------------------------------------------------------------
+class _LayerNorm2d(nn.Module):
+    """Channel-wise LayerNorm for ``(N, C, H, W)`` tensors (ConvNeXt §2.3).
+
+    Normalises over the channel dimension only, matching the official
+    ``channels_first`` LayerNorm used in the ConvNeXt reference implementation.
+    """
+
+    def __init__(self, num_channels: int, eps: float = 1e-6) -> None:
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(num_channels))
+        self.bias = nn.Parameter(torch.zeros(num_channels))
+        self.eps = eps
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mean = x.mean(1, keepdim=True)
+        var = (x - mean).pow(2).mean(1, keepdim=True)
+        x = (x - mean) / torch.sqrt(var + self.eps)
+        return self.weight[None, :, None, None] * x + self.bias[None, :, None, None]
+
+
+class _ConvNeXtBlock(nn.Module):
+    """ConvNeXt residual block (Liu et al., 2022 — Fig. 4, §2).
+
+    Pipeline: depthwise 7×7 conv → LayerNorm → 1×1 conv expand ×4 → GELU →
+    1×1 conv project → LayerScale → stochastic depth → residual add.
+
+    The whole block stays in channels-first (NCHW) layout: the two pointwise
+    "Linear" layers of the paper are implemented as equivalent 1×1 convolutions
+    and a channel-wise :class:`_LayerNorm2d` is used.  This avoids the
+    ``permute`` → ``nn.LayerNorm`` pattern, whose backward pass is broken on the
+    Apple MPS backend ("view size is not compatible ..."), while remaining
+    numerically identical on CPU/CUDA.
+    """
+
+    def __init__(self, dim: int, drop_path: float, layer_scale_init: float) -> None:
+        super().__init__()
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=7, padding=3, groups=dim)
+        self.norm = _LayerNorm2d(dim)
+        self.pwconv1 = nn.Conv2d(dim, 4 * dim, kernel_size=1)
+        self.act = nn.GELU()
+        self.pwconv2 = nn.Conv2d(4 * dim, dim, kernel_size=1)
+        # LayerScale (Touvron et al. 2021): a learnable per-channel scale γ.
+        self.gamma: nn.Parameter | None = (
+            nn.Parameter(layer_scale_init * torch.ones(dim, 1, 1)) if layer_scale_init > 0 else None
+        )
+        self.drop_path = StochasticDepth(drop_path, mode="row")
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        shortcut = x
+        x = self.dwconv(x)
+        x = self.norm(x)
+        x = self.pwconv1(x)
+        x = self.act(x)
+        x = self.pwconv2(x)
+        if self.gamma is not None:
+            x = self.gamma * x
+        result: torch.Tensor = shortcut + self.drop_path(x)
+        return result
+
+
+class ConvNeXt(nn.Module):
+    """ConvNeXt trained **from scratch** (no pretrained weights).
+
+    Hierarchical design (§2): a patchify stem (4×4 stride-4 conv), four stages
+    of :class:`_ConvNeXtBlock` separated by 2×2 stride-2 downsampling layers,
+    global average pooling, a final LayerNorm and a linear classifier head.
+    Depths, channel widths, stochastic-depth rate and LayerScale are all driven
+    by :class:`Settings` so the network can be sized down for the small TILDA
+    dataset (1,888 training images) to control overfitting.
+    """
+
+    def __init__(self, settings: Settings) -> None:
+        super().__init__()
+        depths = settings.convnext_depths
+        dims = settings.convnext_dims
+        c_in = settings.in_channels
+        n_cls = settings.num_classes
+
+        # Downsampling layers: stem + 3 inter-stage downsamplers.
+        self.downsample_layers = nn.ModuleList()
+        stem = nn.Sequential(
+            nn.Conv2d(c_in, dims[0], kernel_size=4, stride=4),
+            _LayerNorm2d(dims[0]),
+        )
+        self.downsample_layers.append(stem)
+        for i in range(3):
+            self.downsample_layers.append(
+                nn.Sequential(
+                    _LayerNorm2d(dims[i]),
+                    nn.Conv2d(dims[i], dims[i + 1], kernel_size=2, stride=2),
+                )
+            )
+
+        # Linear stochastic-depth decay across all blocks (§2.3, "we use ...
+        # a stochastic depth rate that increases linearly with block depth").
+        total_blocks = sum(depths)
+        dp_rates = [float(r) for r in torch.linspace(0.0, settings.drop_path_rate, total_blocks)]
+        self.stages = nn.ModuleList()
+        cursor = 0
+        for i in range(4):
+            blocks = [
+                _ConvNeXtBlock(dims[i], dp_rates[cursor + j], settings.layer_scale_init)
+                for j in range(depths[i])
+            ]
+            self.stages.append(nn.Sequential(*blocks))
+            cursor += depths[i]
+
+        self.norm = nn.LayerNorm(dims[-1], eps=1e-6)  # applied to pooled features
+        # Head structure is fixed (Dropout always present) so checkpoint keys are
+        # stable regardless of the configured dropout probability.
+        self.head = nn.Sequential(
+            nn.Dropout(settings.head_dropout),
+            nn.Linear(dims[-1], n_cls),
+        )
+
+        self.apply(self._init_weights)
+
+    @staticmethod
+    def _init_weights(module: nn.Module) -> None:
+        if isinstance(module, nn.Conv2d | nn.Linear):
+            nn.init.trunc_normal_(module.weight, std=0.02)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        for i in range(4):
+            x = self.downsample_layers[i](x)
+            x = self.stages[i](x)
+        x = x.mean([-2, -1])  # global average pooling → (N, C)
+        x = self.norm(x)
+        result: torch.Tensor = self.head(x)
+        return result
+
+
+def convnext(settings: Settings) -> ConvNeXt:
+    return ConvNeXt(settings)
+
+
+# ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
 _MODEL_REGISTRY: dict[str, Callable[[Settings], nn.Module]] = {
@@ -278,6 +420,7 @@ _MODEL_REGISTRY: dict[str, Callable[[Settings], nn.Module]] = {
     "alexnet": AlexNet,
     "resnet18": resnet18,
     "resnet34": resnet34,
+    "convnext": convnext,
 }
 
 
