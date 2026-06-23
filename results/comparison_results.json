@@ -78,5 +78,24 @@
     "drop_path_rate": 0.1,
     "from_scratch": true,
     "n_params": 23518152
+  },
+  "resnet34_hires": {
+    "best_val_acc": 0.23255813953488372,
+    "best_train_acc": 0.18591101694915255,
+    "training_time_s": 180.53327703475952,
+    "epochs_trained": 2,
+    "optimizer": "adamw",
+    "scheduler": "onecycle",
+    "learning_rate": 0.001,
+    "batch_size": 16,
+    "weight_decay": 0.01,
+    "label_smoothing": 0.1,
+    "warmup_epochs": 0,
+    "mixup_alpha": 0.0,
+    "cutmix_alpha": 0.0,
+    "use_ema": false,
+    "drop_path_rate": 0.1,
+    "from_scratch": true,
+    "n_params": 21282504
   }
 }

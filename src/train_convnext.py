@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _RECIPES = {
     "convnext": Settings.convnext_recipe,
     "resnet50": Settings.resnet50_recipe,
+    "resnet34_hires": Settings.resnet34_hires_recipe,
 }
 
 

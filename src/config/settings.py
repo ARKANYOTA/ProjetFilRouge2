@@ -149,6 +149,32 @@ class Settings(BaseSettings):
             }
         )
 
+    @classmethod
+    def resnet34_hires_recipe(cls) -> Settings:
+        """ResNet-34 from scratch at 384×384 input resolution.
+
+        Higher resolution preserves high-frequency textile texture that 224px
+        destroys.  Batch shrinks to 16 to stay inside MPS memory; OneCycle LR
+        matches the 81.4% baseline recipe.  Checkpoint by val accuracy.
+        """
+        return cls().model_copy(
+            update={
+                "model_name": "resnet34_hires",
+                "in_channels": 1,
+                "image_size": 384,
+                "batch_size": 16,
+                "optimizer_name": "adamw",
+                "scheduler_name": "onecycle",
+                "learning_rate": 1e-3,
+                "weight_decay": 1e-2,
+                "epochs": 150,
+                "label_smoothing": 0.1,
+                "checkpoint_metric": "acc",
+                "patience": 150,
+                "num_workers": 0,
+            }
+        )
+
     def get_resolved_dataset_path(self) -> str:
         if self.dataset_path:
             return self.dataset_path

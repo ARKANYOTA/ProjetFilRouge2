@@ -477,6 +477,7 @@ _MODEL_REGISTRY: dict[str, Callable[[Settings], nn.Module]] = {
     "alexnet": AlexNet,
     "resnet18": resnet18,
     "resnet34": resnet34,
+    "resnet34_hires": resnet34,  # same arch, separate checkpoint for 384px run
     "resnet50": resnet50,
     "convnext": convnext,
 }
