@@ -3,7 +3,16 @@ from __future__ import annotations
 import torch
 
 from src.config.settings import Settings
-from src.models.cnn import AlexNet, LeNet5, ResNet, get_model, resnet18, resnet34
+from src.models.cnn import (
+    AlexNet,
+    LeNet5,
+    ResNet,
+    _Bottleneck,
+    get_model,
+    resnet18,
+    resnet34,
+    resnet50,
+)
 
 
 def _make_settings(**overrides: object) -> Settings:
@@ -53,6 +62,21 @@ def test_resnet34_forward_shape() -> None:
     assert out.shape == (2, 8)
 
 
+def test_resnet50_forward_shape() -> None:
+    """ResNet-50 produces (batch, num_classes) output."""
+    s = _make_settings(model_name="resnet50")
+    model = resnet50(s)
+    out = model(torch.randn(2, 1, 224, 224))
+    assert out.shape == (2, 8)
+
+
+def test_resnet50_uses_bottleneck() -> None:
+    """ResNet-50 is built from Bottleneck blocks (expansion 4)."""
+    model = resnet50(_make_settings(model_name="resnet50"))
+    assert model.block is _Bottleneck
+    assert isinstance(model.layer1[0], _Bottleneck)
+
+
 def test_get_model_factory() -> None:
     """get_model dispatches correctly for each registered name."""
     for name, cls in [
@@ -60,6 +84,7 @@ def test_get_model_factory() -> None:
         ("alexnet", AlexNet),
         ("resnet18", ResNet),
         ("resnet34", ResNet),
+        ("resnet50", ResNet),
     ]:
         s = _make_settings(model_name=name)
         model = get_model(s)

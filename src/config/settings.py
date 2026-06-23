@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     # Sized down from ConvNeXt-Tiny (depths [3,3,9,3], dims [96,192,384,768]) to suit
     # the small TILDA training set (1,888 images) and avoid overfitting.
     convnext_depths: tuple[int, int, int, int] = (3, 3, 9, 3)
-    convnext_dims: tuple[int, int, int, int] = (64, 128, 256, 512)
+    convnext_dims: tuple[int, int, int, int] = (48, 96, 192, 384)
     drop_path_rate: float = 0.1  # max stochastic-depth probability (linearly scaled by block depth)
     layer_scale_init: float = 1e-6  # LayerScale gamma initial value (0 disables LayerScale)
     head_dropout: float = 0.0  # dropout before the classification head
@@ -87,11 +87,15 @@ class Settings(BaseSettings):
     def convnext_recipe(cls) -> Settings:
         """Return the from-scratch ConvNeXt training recipe.
 
-        Centralises every hyper-parameter for the headline accuracy experiment
-        (no pretrained weights): AdamW + cosine schedule with warm-up, MixUp +
-        CutMix, EMA, label smoothing, stochastic depth and head dropout.  Values
-        not listed here fall back to the environment / defaults (e.g. dataset
-        path).  Override individual fields with :meth:`model_copy`.
+        Centralises the from-scratch ConvNeXt training recipe (no pretrained
+        weights): AdamW + cosine schedule with warm-up, label smoothing,
+        stochastic depth and head dropout, with the best checkpoint selected by
+        validation accuracy.  MixUp/CutMix and EMA are intentionally left
+        *disabled* in this core recipe: on a from-scratch ConvNeXt with few
+        optimisation steps per epoch they suppressed early learning (MixUp) and
+        biased validation toward a cold moving average (EMA).  They remain
+        available via :meth:`model_copy` for follow-up ablations.  Values not
+        listed here fall back to the environment / defaults (e.g. dataset path).
         """
         return cls().model_copy(
             update={
@@ -101,20 +105,47 @@ class Settings(BaseSettings):
                 "scheduler_name": "cosine",
                 "learning_rate": 2e-3,
                 "weight_decay": 0.05,
-                "epochs": 200,
-                "warmup_epochs": 20,
+                "epochs": 150,
+                "warmup_epochs": 10,
                 "min_lr_ratio": 1e-2,
-                "mixup_alpha": 0.2,
-                "cutmix_alpha": 1.0,
+                "mixup_alpha": 0.0,
+                "cutmix_alpha": 0.0,
                 "mixup_switch_prob": 0.5,
-                "use_ema": True,
+                "use_ema": False,
                 "ema_decay": 0.999,
                 "label_smoothing": 0.1,
                 "head_dropout": 0.1,
                 "drop_path_rate": 0.1,
                 "checkpoint_metric": "acc",
-                "patience": 200,
-                "batch_size": 32,
+                "patience": 150,
+                "batch_size": 64,
+                "num_workers": 0,
+            }
+        )
+
+    @classmethod
+    def resnet50_recipe(cls) -> Settings:
+        """Return the from-scratch ResNet-50 training recipe.
+
+        Mirrors the configuration that took ResNet-34 to its 81.4% peak (AdamW +
+        OneCycle + label smoothing) on the deeper Bottleneck network, but selects
+        the best checkpoint by validation accuracy and uses a larger batch (64)
+        for faster, more stable Batch-Norm statistics.  No pretrained weights.
+        """
+        return cls().model_copy(
+            update={
+                "model_name": "resnet50",
+                "in_channels": 1,
+                "optimizer_name": "adamw",
+                "scheduler_name": "onecycle",
+                "learning_rate": 1e-3,
+                "weight_decay": 1e-2,
+                "epochs": 150,
+                "label_smoothing": 0.1,
+                "checkpoint_metric": "acc",
+                "patience": 150,
+                "batch_size": 64,
+                "num_workers": 0,
             }
         )
 

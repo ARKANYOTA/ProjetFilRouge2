@@ -58,11 +58,11 @@ def test_layer_scale_can_be_disabled() -> None:
 
 
 def test_convnext_recipe_is_from_scratch() -> None:
-    """The headline recipe never enables pretrained weights and uses cosine + EMA."""
+    """The core recipe never enables pretrained weights; cosine + acc selection."""
     recipe = Settings.convnext_recipe()
     assert recipe.model_name == "convnext"
     assert recipe.pretrained is False
     assert recipe.scheduler_name == "cosine"
-    assert recipe.use_ema is True
-    assert recipe.mixup_alpha > 0.0 and recipe.cutmix_alpha > 0.0
+    assert recipe.warmup_epochs > 0
+    assert recipe.label_smoothing > 0.0
     assert recipe.checkpoint_metric == "acc"

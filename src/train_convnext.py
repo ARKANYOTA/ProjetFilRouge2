@@ -23,9 +23,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+_RECIPES = {
+    "convnext": Settings.convnext_recipe,
+    "resnet50": Settings.resnet50_recipe,
+}
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Train ConvNeXt from scratch on TILDA with the modern recipe."
+        description="Train a from-scratch TILDA model with its tuned recipe."
+    )
+    parser.add_argument(
+        "--recipe",
+        choices=sorted(_RECIPES),
+        default="convnext",
+        help="Which from-scratch training recipe to run (default: convnext)",
     )
     parser.add_argument(
         "--epochs", type=int, default=None, help="Override the recipe epoch count (e.g. for smoke)"
@@ -33,14 +45,14 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--smoke",
         action="store_true",
-        help="Fast end-to-end sanity run (few epochs, EMA disabled, short warm-up)",
+        help="Fast end-to-end sanity run (few epochs, short warm-up)",
     )
     return parser
 
 
 def build_settings(args: argparse.Namespace) -> Settings:
-    """Resolve the ConvNeXt recipe with optional CLI overrides."""
-    settings = Settings.convnext_recipe()
+    """Resolve the chosen recipe with optional CLI overrides."""
+    settings = _RECIPES[args.recipe]()
     if args.smoke:
         settings = settings.model_copy(
             update={"epochs": 3, "warmup_epochs": 1, "use_ema": False, "patience": 3}
@@ -51,21 +63,21 @@ def build_settings(args: argparse.Namespace) -> Settings:
 
 
 def main() -> int:
-    """Train the from-scratch ConvNeXt and persist artefacts under results/."""
+    """Train the chosen from-scratch model and persist artefacts under results/."""
     args = _build_parser().parse_args()
     settings = build_settings(args)
     device = settings.resolve_device()
 
     logger.info("=" * 60)
-    logger.info("Training CONVNEXT (from scratch) on %s", device)
+    logger.info("Training %s (from scratch) on %s", settings.model_name.upper(), device)
     logger.info(
-        "depths=%s dims=%s drop_path=%.3f epochs=%d lr=%.1e wd=%.3f",
-        settings.convnext_depths,
-        settings.convnext_dims,
-        settings.drop_path_rate,
+        "epochs=%d optimizer=%s scheduler=%s lr=%.1e wd=%.3f batch=%d",
         settings.epochs,
+        settings.optimizer_name,
+        settings.scheduler_name,
         settings.learning_rate,
         settings.weight_decay,
+        settings.batch_size,
     )
     logger.info("=" * 60)
 

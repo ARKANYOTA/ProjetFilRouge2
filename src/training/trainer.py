@@ -252,6 +252,11 @@ class Trainer:
             else:
                 patience_counter += 1
 
+            # Release cached MPS memory each epoch to avoid the reserved-memory
+            # growth (and eventual swapping/throttling) seen on long runs.
+            if self.device.type == "mps":
+                torch.mps.empty_cache()
+
             # Early stopping
             if patience_counter >= self.settings.patience:
                 logger.info(

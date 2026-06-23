@@ -40,5 +40,43 @@
     "batch_size": 32,
     "weight_decay": 0.01,
     "label_smoothing": 0.1
+  },
+  "convnext": {
+    "best_val_acc": 0.5750528541226215,
+    "best_train_acc": 0.638771186440678,
+    "training_time_s": 11808.789417982101,
+    "epochs_trained": 150,
+    "optimizer": "adamw",
+    "scheduler": "cosine",
+    "learning_rate": 0.002,
+    "batch_size": 64,
+    "weight_decay": 0.05,
+    "label_smoothing": 0.1,
+    "warmup_epochs": 10,
+    "mixup_alpha": 0.0,
+    "cutmix_alpha": 0.0,
+    "use_ema": false,
+    "drop_path_rate": 0.1,
+    "from_scratch": true,
+    "n_params": 7054904
+  },
+  "resnet50": {
+    "best_val_acc": 0.7991543340380549,
+    "best_train_acc": 0.8908898305084746,
+    "training_time_s": 13181.570523262024,
+    "epochs_trained": 150,
+    "optimizer": "adamw",
+    "scheduler": "onecycle",
+    "learning_rate": 0.001,
+    "batch_size": 64,
+    "weight_decay": 0.01,
+    "label_smoothing": 0.1,
+    "warmup_epochs": 0,
+    "mixup_alpha": 0.0,
+    "cutmix_alpha": 0.0,
+    "use_ema": false,
+    "drop_path_rate": 0.1,
+    "from_scratch": true,
+    "n_params": 23518152
   }
 }

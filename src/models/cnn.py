@@ -184,6 +184,50 @@ class _BasicBlock(nn.Module):
         return result
 
 
+class _Bottleneck(nn.Module):
+    """Residual *Bottleneck* block (Fig. 5 right, He et al. 2016).
+
+    Three stacked convolutions — 1×1 (reduce) → 3×3 → 1×1 (expand by four) —
+    each followed by Batch Normalisation, used by ResNet-50/101/152.  The 1×1
+    layers restore and then expand the channel dimension so the 3×3 convolution
+    operates on a reduced "bottleneck" width (§3.3, "Deeper Bottleneck
+    Architectures").
+    """
+
+    expansion: int = 4
+
+    def __init__(
+        self,
+        in_planes: int,
+        planes: int,
+        stride: int = 1,
+        downsample: nn.Module | None = None,
+    ) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.downsample = downsample
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        identity = x
+
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity  # shortcut connection — Eq. 1: y = F(x) + x
+        result: torch.Tensor = self.relu(out)
+        return result
+
+
 class ResNet(nn.Module):
     """ResNet architecture from *Deep Residual Learning for Image Recognition*
     (He et al., 2016).
@@ -193,13 +237,22 @@ class ResNet(nn.Module):
     - Projection shortcut (Eq. 2) when dimensions change: y = F(x) + Ws·x
     - Batch Norm after every conv (§3.4)
     - No dropout (§3.4: "We do not use dropout, following [16]")
+
+    The residual ``block`` (``_BasicBlock`` for ResNet-18/34, ``_Bottleneck`` for
+    ResNet-50) determines the channel expansion factor of each stage.
     """
 
-    def __init__(self, settings: Settings, layers: list[int]) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        layers: list[int],
+        block: type[_BasicBlock | _Bottleneck] = _BasicBlock,
+    ) -> None:
         super().__init__()
         c_in = settings.in_channels
         n_cls = settings.num_classes
         self.in_planes = 64
+        self.block = block
 
         # conv1: "7×7, 64, stride 2"
         self.conv1 = nn.Conv2d(c_in, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -216,7 +269,7 @@ class ResNet(nn.Module):
 
         # "the network ends with a global average pooling layer" (§3.3)
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * _BasicBlock.expansion, n_cls)
+        self.fc = nn.Linear(512 * block.expansion, n_cls)
 
         # Weight initialisation following He et al. [13] (§3.4)
         for m in self.modules():
@@ -228,23 +281,23 @@ class ResNet(nn.Module):
 
     def _make_layer(self, planes: int, blocks: int, stride: int) -> nn.Sequential:
         downsample: nn.Module | None = None
-        if stride != 1 or self.in_planes != planes * _BasicBlock.expansion:
+        if stride != 1 or self.in_planes != planes * self.block.expansion:
             # Projection shortcut (Eq. 2, option B)
             downsample = nn.Sequential(
                 nn.Conv2d(
                     self.in_planes,
-                    planes * _BasicBlock.expansion,
+                    planes * self.block.expansion,
                     kernel_size=1,
                     stride=stride,
                     bias=False,
                 ),
-                nn.BatchNorm2d(planes * _BasicBlock.expansion),
+                nn.BatchNorm2d(planes * self.block.expansion),
             )
 
-        layers_: list[nn.Module] = [_BasicBlock(self.in_planes, planes, stride, downsample)]
-        self.in_planes = planes * _BasicBlock.expansion
+        layers_: list[nn.Module] = [self.block(self.in_planes, planes, stride, downsample)]
+        self.in_planes = planes * self.block.expansion
         for _ in range(1, blocks):
-            layers_.append(_BasicBlock(self.in_planes, planes))
+            layers_.append(self.block(self.in_planes, planes))
 
         return nn.Sequential(*layers_)
 
@@ -269,6 +322,10 @@ def resnet18(settings: Settings) -> ResNet:
 
 def resnet34(settings: Settings) -> ResNet:
     return ResNet(settings, [3, 4, 6, 3])
+
+
+def resnet50(settings: Settings) -> ResNet:
+    return ResNet(settings, [3, 4, 6, 3], block=_Bottleneck)
 
 
 # ---------------------------------------------------------------------------
@@ -420,6 +477,7 @@ _MODEL_REGISTRY: dict[str, Callable[[Settings], nn.Module]] = {
     "alexnet": AlexNet,
     "resnet18": resnet18,
     "resnet34": resnet34,
+    "resnet50": resnet50,
     "convnext": convnext,
 }
 
