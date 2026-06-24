@@ -85,7 +85,6 @@ class Trainer:
                 mode="min",
                 factor=settings.scheduler_factor,
                 patience=settings.scheduler_patience,
-                verbose=False,
             )
 
         # History

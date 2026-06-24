@@ -356,9 +356,9 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     """CLI entry point for local-only Kaggle prediction generation and validation."""
     args = _build_parser().parse_args()
+    model_name = args.model if args.model is not None else Settings().model_name
+    settings = Settings.from_model_name(model_name)
     updates: dict[str, object] = {}
-    if args.model is not None:
-        updates["model_name"] = args.model
     if args.checkpoint is not None:
         updates["checkpoint_path"] = args.checkpoint
     if args.output is not None:
@@ -369,7 +369,7 @@ def main() -> int:
         updates["submission_delimiter"] = args.delimiter
     if args.tta:
         updates["use_tta"] = True
-    settings = Settings().model_copy(update=updates)
+    settings = settings.model_copy(update=updates)
 
     try:
         if args.validate_only is not None:

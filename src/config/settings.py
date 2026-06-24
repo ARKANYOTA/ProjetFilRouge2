@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     results_dir: str = "results"
     checkpoint_path: str | None = None
     submission_path: str | None = None
-    submission_delimiter: Literal[";", ","] = ";"
+    submission_delimiter: Literal[";", ","] = ","
 
     # Bias evaluation settings (Part 3)
     p0: float = 0.5
@@ -174,6 +174,18 @@ class Settings(BaseSettings):
                 "num_workers": 0,
             }
         )
+
+    @classmethod
+    def from_model_name(cls, model_name: str) -> Settings:
+        """Resolve the appropriate settings/recipe for a given model name."""
+        name = model_name.lower()
+        if name == "convnext":
+            return cls.convnext_recipe()
+        if name == "resnet50":
+            return cls.resnet50_recipe()
+        if name == "resnet34_hires":
+            return cls.resnet34_hires_recipe()
+        return cls().model_copy(update={"model_name": model_name})
 
     def get_resolved_dataset_path(self) -> str:
         if self.dataset_path:

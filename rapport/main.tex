@@ -41,7 +41,7 @@
 
 \eleves{Marin \textsc{Decanini}\\Nolan \textsc{Carlisi}}
 
-\enseignant{Pierre \textsc{Weiss}\\Université de Toulouse\\ Senior CNRS researcher at IRIT}
+\enseignant{}
 
 %----------- Initialisation -------------------
 \fairemarges %Afficher les marges
@@ -122,6 +122,7 @@ Training is performed on the macOS MPS (Metal Performance Shaders) backend using
 \centering
 \caption{Model Architecture Details and Parameter Counts}
 \label{tab:models}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lllr}
 \toprule
 Model & Major Layers & Activations & Parameter Count \\
@@ -134,7 +135,8 @@ ResNet-50 (from scratch) & 49 Conv (Bottleneck), 1 MaxPool, 1 FC & ReLU & 23,518
 ResNet-34 hires (from scratch) & 33 Conv, 1 MaxPool, 1 FC & ReLU & 21,282,504 \\
 ConvNeXt (from scratch) & Patchify stem, 18 blocks (depthwise+$1{\times}1$), 1 FC & GELU & 7,054,904 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \subsection{Hyperparameter Tuning and Validation}
@@ -145,6 +147,7 @@ For Question 2.4, the model validation metrics, parameter details, and total tra
 \centering
 \caption{Model Training and Evaluation Metrics}
 \label{tab:results}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{llrrrr}
 \toprule
 Model & Optimizer & Epochs & Peak Train Acc. & Peak Val Acc. & Time (s) \\
@@ -157,7 +160,8 @@ ResNet-50 (from scratch) & AdamW & 150 & 89.09\% & 79.92\% & 13,181.6 \\
 ResNet-34 hires (from scratch) & AdamW & 150 & 89.88\% & \textbf{84.36\%} & 25,254.5 \\
 ConvNeXt (from scratch) & AdamW & 150 & 63.88\% & 57.51\% & 11,808.8 \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{figure}[H]
@@ -294,6 +298,7 @@ For Question 3.5, we summarize the training and validation accuracy and Disparat
 \centering
 \caption{Safety Experiment Results ($model_1$ vs $model_2$)}
 \label{tab:safety_results}
+\resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 Model & Train Accuracy & Val Accuracy & Val Loss & Disparate Impact (DI) \\
@@ -301,7 +306,8 @@ Model & Train Accuracy & Val Accuracy & Val Loss & Disparate Impact (DI) \\
 Model 1 (Unbiased) & 48.13\% & 49.17\% & 0.6901 & 0.9370 (Fair) \\
 Model 2 (Biased) & 100.0\% & 55.00\% & 0.6915 & 0.3446 (Biased) \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 \begin{figure}[H]

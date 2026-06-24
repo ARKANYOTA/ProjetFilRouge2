@@ -1,5 +1,5 @@
 {
-  "created_at_utc": "2026-06-24T11:00:44.494756+00:00",
+  "created_at_utc": "2026-06-24T17:38:50.872075+00:00",
   "model_name": "resnet34_hires",
   "checkpoint": {
     "path": "results/resnet34_hires_best.pt",
@@ -11,25 +11,25 @@
       "id",
       "label"
     ],
-    "delimiter": ";",
+    "delimiter": ",",
     "row_count": 789,
-    "sha256": "4ef7113a4d246fb9312a1bf370a16f3e4161de2799f12e9c9866a0f8a79fa952",
+    "sha256": "9aac62a4ca0fc9dc9207bd1ede245ec01a4ba666748ba4ad9c9a1a13495c472a",
     "first_id": "1",
     "last_id": "789",
     "class_histogram": {
-      "0": 53,
-      "1": 32,
-      "2": 164,
-      "3": 43,
-      "4": 37,
-      "5": 109,
-      "6": 31,
-      "7": 320
+      "0": 103,
+      "1": 97,
+      "2": 96,
+      "3": 92,
+      "4": 91,
+      "5": 98,
+      "6": 92,
+      "7": 120
     }
   },
   "audit_csv": {
     "path": "results/kaggle_submission_resnet34_hires_audit.csv",
-    "sha256": "0996345be3676bc9bf0548463e9a58e5ff6c1cbd44518939f0a9a54e1e134359"
+    "sha256": "68ef5ab438c06d39ade0258f250599ef48786d77bb6b4b5c339776c26a6a927a"
   },
   "external_upload_performed": false
 }

@@ -57,9 +57,7 @@ def evaluate_validation(settings: Settings, use_tta: bool) -> float:
 
 def _resolve_settings(model_name: str) -> Settings:
     """Pick the settings profile that matches how each model was trained."""
-    if model_name == "convnext":
-        return Settings.convnext_recipe()
-    return Settings().model_copy(update={"model_name": model_name})
+    return Settings.from_model_name(model_name)
 
 
 def main() -> int:
