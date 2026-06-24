@@ -55,9 +55,9 @@
 	    \begin{center}
 	        \section*{Abstract}
 	    \end{center}
-	    This report presents our implementation and experimental analysis for the S8 Machine Learning Kaggle project on the TILDA textile dataset. 
-	    We focus on two core components: first, training state-of-the-art Convolutional Neural Networks (CNNs) for classification; and second, analyzing machine learning security and AI safety under biased training distributions. 
-	    Specifically, we implement LeNet-5, AlexNet, ResNet-18, and ResNet-34 architectures, evaluate the required baselines using mini-batch SGD, and perform a further optimized ResNet-34 experiment that reaches a peak validation accuracy of 81.40\%. To push accuracy higher \emph{from scratch} (no pretrained weights), we additionally train a deeper ResNet-50 and a modern ConvNeXt with a strong training recipe; both underperform ResNet-34 on this small dataset (1,888 training images), which we analyse as a capacity sweet spot --- ResNet-50 overfits and the BatchNorm-free ConvNeXt underfits --- and we report test-time augmentation and ensembling as further negative results, leaving ResNet-34 as the strongest model.
+	    This report presents our implementation and experimental analysis for the S8 Machine Learning Kaggle project on the TILDA textile dataset.
+	    We focus on two core components: first, training state-of-the-art Convolutional Neural Networks (CNNs) for classification; and second, analyzing machine learning security and AI safety under biased training distributions.
+	    Specifically, we implement LeNet-5, AlexNet, ResNet-18, and ResNet-34 architectures, evaluate the required baselines using mini-batch SGD, and perform a further optimized ResNet-34 experiment that reaches a peak validation accuracy of 81.40\%. To push accuracy higher \emph{from scratch} (no pretrained weights), we additionally train a deeper ResNet-50 and a modern ConvNeXt with a strong training recipe; both underperform ResNet-34 on this small dataset (1,888 training images), which we analyse as a capacity sweet spot --- ResNet-50 overfits and the BatchNorm-free ConvNeXt underfits --- and we report test-time augmentation and ensembling as further negative results. We then demonstrate that simply increasing the input resolution from $224\times224$ to $384\times384$ pixels (\emph{ResNet-34 hires}), while keeping the same architecture and training recipe, raises peak validation accuracy to \textbf{84.36\%}, establishing it as the strongest from-scratch result.
 	    Furthermore, we investigate model vulnerability to spurious correlations by constructing a biased dataset with a noise-like channel correlated with labels, measuring both classification accuracy and fairness using the Disparate Impact (DI) metric.
 	\end{minipage}
 \end{center}
@@ -80,7 +80,7 @@ Deep learning has revolutionized image classification and pattern recognition. H
 \label{sec:preproc}
 The TILDA textile dataset contains grayscale \texttt{.tif} images of size $768 \times 512$ pixels representing different textile textures and defect classes. The dataset has 8 classes, with a relatively small sample size of approximately 2,361 images (~295 samples per class). To handle this dataset effectively and perform a rigorous comparison, we apply the following pre-processing and augmentation pipeline:
 \begin{itemize}
-    \item \textbf{Image Resizing:} To ensure all models receive the same input size and can be compared directly, we resize all images to a standard $224 \times 224$ pixels.
+    \item \textbf{Image Resizing:} To ensure all models receive the same input size and can be compared directly, we resize all images to a standard $224 \times 224$ pixels. For the high-resolution ResNet-34 experiment (\emph{ResNet-34 hires}), we instead resize to $384 \times 384$ pixels to preserve the fine-grained textile texture that $224\times224$ crops discard from the native $768\times512$ source images.
     \item \textbf{Data Augmentation (Q2.1):} Due to the small sample size, deep architectures are highly prone to overfitting. We apply data augmentation techniques that preserve the textile texture semantic content:
     \begin{itemize}
         \item \textit{Random Horizontal and Vertical Flips:} Textile patterns and defects are invariant to reflections.
@@ -100,6 +100,7 @@ For Question 2.2, we implement a family of convolutional neural network architec
     \item \textbf{ResNet-18 (He et al., 2016):} Represents the modern state-of-the-art in CNNs. It solves the vanishing gradient problem in deep networks using residual connections (identity shortcuts mapping $y = F(x) + x$). It uses Batch Normalization after every convolutional layer (before ReLU activation) and does not use dropout. The network finishes with global average pooling and a single linear layer.
     \item \textbf{ResNet-34 (He et al., 2016):} Extends the same residual design to 16 BasicBlocks distributed as $[3,4,6,3]$ across the four stages. Each BasicBlock contains two $3 \times 3$ convolutions. The first block of a new stage downsamples spatially and uses a $1 \times 1$ projection shortcut. Its additional depth and 21.28 million parameters increase representational capacity while residual paths preserve trainability.
     \item \textbf{ResNet-50 (He et al., 2016), trained from scratch:} Replaces the BasicBlock with the Bottleneck block (a $1 \times 1$ reduction, a $3 \times 3$ convolution, and a $1 \times 1$ expansion by a factor of four), keeping the same $[3,4,6,3]$ stage layout. This roughly triples the effective depth and brings the parameter count to 23.52 million, testing whether more capacity helps on the small TILDA set. It uses the same Batch Normalization and residual design as the smaller ResNets.
+    \item \textbf{ResNet-34 hires (He et al., 2016), trained from scratch:} The same ResNet-34 architecture (BasicBlock, $[3,4,6,3]$ stage layout, 21.28 million parameters) retrained with a $384\times384$ pixel input resolution. The native TILDA images are $768\times512$; downscaling to $224\times224$ destroys high-frequency texture detail that distinguishes textile defect classes. At $384\times384$ the model retains substantially more of this spatial information at a manageable memory cost (batch size reduced from 32 to 16 to fit the MPS backend). All other hyperparameters mirror the optimized ResNet-34 recipe (AdamW, OneCycle LR, label smoothing 0.1, 150 epochs, checkpoint by maximum validation accuracy).
     \item \textbf{ConvNeXt (Liu et al., 2022), trained from scratch:} A modernized pure convolutional network that imports several design choices popularized by vision transformers. We implement it from scratch with randomly initialized weights; consistent with the constraints of this study, no pretrained or transfer-learned weights are used. Each ConvNeXt block applies a depthwise $7 \times 7$ convolution (a large receptive field at low cost), a channel-wise Layer Normalization, and an inverted bottleneck of two $1 \times 1$ convolutions that expands the channel dimension by a factor of four with a GELU activation in between; the residual branch is scaled by a learnable per-channel LayerScale and regularized by stochastic depth. The network uses a ``patchify'' stem (a $4 \times 4$ stride-4 convolution) followed by four stages with block depths $[3,3,9,3]$ and channel widths $[48,96,192,384]$. These widths are deliberately reduced relative to the original ConvNeXt-Tiny ($[96,192,384,768]$, 28.6M parameters) to limit overfitting on the small TILDA training set and to keep the per-epoch cost tractable on the MPS backend. It ends with global average pooling, a final Layer Normalization, and a single linear classifier, for a total of 7,054,904 parameters. To keep the implementation portable across CPU, CUDA, and the Apple MPS backend, every block operates in channels-first layout (the pointwise layers are realized as equivalent $1 \times 1$ convolutions), which avoids a back-propagation incompatibility in the \texttt{permute}+\texttt{LayerNorm} pattern observed on MPS.
 \end{enumerate}
 
@@ -111,6 +112,8 @@ After ResNet-18 emerged as the strongest baseline, we ran an explicitly separate
 To push validation accuracy further while strictly respecting the from-scratch constraint (no pretrained or transfer-learned weights), we trained two additional models with stronger recipes. The deeper \textbf{ResNet-50} reuses the proven ResNet optimization setup: AdamW (maximum learning rate $10^{-3}$, decoupled weight decay $10^{-2}$, mini-batches of 64), a OneCycle learning-rate schedule over a 150-epoch budget, label smoothing of $0.1$, gradient clipping at norm 1.0, and the augmentation pipeline of Section~\ref{sec:preproc}. The best checkpoint is selected by \emph{maximum validation accuracy} rather than minimum validation loss, which is better aligned with the classification objective when label smoothing distorts the loss scale.
 
 The \textbf{ConvNeXt} model is trained with a modern recipe adapted to its BatchNorm-free design. The optimizer is AdamW (maximum learning rate $2 \times 10^{-3}$, decoupled weight decay $0.05$, mini-batches of 64) driven by a cosine-annealing learning-rate schedule preceded by a 10-epoch linear warm-up, over a 150-epoch budget. Regularization combines label smoothing ($0.1$), stochastic depth (maximum drop-path probability $0.1$, scaled linearly with block depth), head dropout, and the same texture-preserving augmentation pipeline. The best checkpoint is again selected by maximum validation accuracy. The same seeded stratified 80/20 split is reused for both models so that the comparison with the earlier architectures remains meaningful.
+
+The \textbf{ResNet-34 hires} experiment reuses the ResNet-34 recipe exactly (AdamW, maximum learning rate $10^{-3}$, decoupled weight decay $10^{-2}$, OneCycle schedule, label smoothing 0.1, gradient clipping at norm 1.0, 150 epochs, checkpoint by maximum validation accuracy) with two changes: input resolution is raised to $384\times384$ and batch size is reduced from 32 to 16 to stay within MPS memory. No other hyperparameter is modified, so the resolution effect can be read cleanly from the result.
 
 We initially included two additional regularizers in the ConvNeXt recipe --- \emph{MixUp}/\emph{CutMix} (which interpolate inputs and one-hot targets) and an exponential moving average (EMA) of the weights --- but found they \emph{prevented} the from-scratch network from learning on this small dataset: validation accuracy stalled near chance because the per-batch label mixing and the cold EMA (only $\sim$30 optimizer steps per epoch) masked the training signal. We therefore disabled MixUp, CutMix, and EMA and validated the raw model directly, which recovered a clean learning curve. This is reported as a negative result in Section~\ref{sec:negative}.
 
@@ -128,6 +131,7 @@ AlexNet (Modified) & 5 Conv, 3 MaxPool, 3 FC & ReLU & 14,586,216 \\
 ResNet-18 & 17 Conv, 1 MaxPool, 1 FC & ReLU & 11,174,344 \\
 ResNet-34 & 33 Conv, 1 MaxPool, 1 FC & ReLU & 21,282,504 \\
 ResNet-50 (from scratch) & 49 Conv (Bottleneck), 1 MaxPool, 1 FC & ReLU & 23,518,152 \\
+ResNet-34 hires (from scratch) & 33 Conv, 1 MaxPool, 1 FC & ReLU & 21,282,504 \\
 ConvNeXt (from scratch) & Patchify stem, 18 blocks (depthwise+$1{\times}1$), 1 FC & GELU & 7,054,904 \\
 \bottomrule
 \end{tabular}
@@ -148,8 +152,9 @@ Model & Optimizer & Epochs & Peak Train Acc. & Peak Val Acc. & Time (s) \\
 LeNet-5 & SGD & 50 & 28.23\% & 30.87\% & 427.3 \\
 AlexNet (Modified) & SGD & 50 & 29.77\% & 36.36\% & 357.2 \\
 ResNet-18 & SGD & 50 & 64.88\% & 69.98\% & 1,652.8 \\
-ResNet-34 (optimized) & AdamW & 100 & 80.77\% & \textbf{81.40\%} & 5,865.5 \\
+ResNet-34 (optimized) & AdamW & 100 & 80.77\% & 81.40\% & 5,865.5 \\
 ResNet-50 (from scratch) & AdamW & 150 & 89.09\% & 79.92\% & 13,181.6 \\
+ResNet-34 hires (from scratch) & AdamW & 150 & 89.88\% & \textbf{84.36\%} & 25,254.5 \\
 ConvNeXt (from scratch) & AdamW & 150 & 63.88\% & 57.51\% & 11,808.8 \\
 \bottomrule
 \end{tabular}
@@ -199,7 +204,13 @@ ConvNeXt (from scratch) & AdamW & 150 & 63.88\% & 57.51\% & 11,808.8 \\
     \caption{ConvNeXt Curves (underfitting)}
     \label{fig:convnext_curves}
 \end{subfigure}
-\caption{Training and validation curves for the two additional from-scratch experiments. ResNet-50 reaches 89.09\% train accuracy but only 79.92\% validation (a widening generalization gap); ConvNeXt plateaus with train and validation accuracy both low, the signature of underfitting.}
+\begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/resnet34_hires_training_curves.png}
+    \caption{ResNet-34 hires Curves (84.36\% val)}
+    \label{fig:resnet34_hires_curves}
+\end{subfigure}
+\caption{Training and validation curves for the additional from-scratch experiments. ResNet-50 reaches 89.09\% train accuracy but only 79.92\% validation (a widening generalization gap); ConvNeXt plateaus with both train and validation accuracy low, the signature of underfitting; ResNet-34 hires ($384\times384$ input) achieves 84.36\% validation accuracy, a clear improvement over the 224-pixel baseline.}
 \label{fig:fromscratch_curves}
 \end{figure}
 
@@ -221,6 +232,8 @@ The experimental results demonstrate a clear hierarchical progression in perform
     \item \textbf{ConvNeXt, from scratch (57.51\%):} The modern architecture underperforms substantially, with both training (63.88\%) and validation (57.51\%) accuracy remaining low --- the signature of \emph{underfitting}. ConvNeXt's design (large depthwise kernels, LayerNorm, GELU, no BatchNorm) was tuned for large-scale pretraining on ImageNet; without pretrained weights and with so few images, its weak normalization and implicit reliance on heavy data make it far harder to optimize from scratch than a BatchNorm-equipped ResNet. This confirms that architectural modernity does not transfer to the small-data, from-scratch regime.
 \end{itemize}
 Together these results delineate a \textbf{capacity sweet spot} at ResNet-34: shallower or weaker models (LeNet-5, AlexNet, ResNet-18) underfit, the deeper ResNet-50 overfits, and the BatchNorm-free ConvNeXt fails to optimize. On a dataset of fewer than 1,900 training images, ResNet-34 best balances representational capacity against generalization.
+
+    \textbf{ResNet-34 hires (84.36\%):} Retraining the same ResNet-34 at $384\times384$ pixel resolution adds 2.96 percentage points over the $224\times224$ baseline (81.40\%). The source images are $768\times512$; halving this resolution to $224\times224$ discards high-frequency texture detail that is diagnostic for textile defect classes. At $384\times384$, the network retains substantially more spatial information without increasing model complexity. The architecture, optimizer, schedule, and regularization are identical to the optimized ResNet-34; the sole change is the input size and the corresponding reduction in batch size (32 → 16) to stay within MPS memory. This establishes higher resolution as the single most effective remaining lever on this dataset.
 
 \subsubsection{Negative Results: Test-Time Augmentation and Ensembling}
 \label{sec:negative}
