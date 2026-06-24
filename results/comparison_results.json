@@ -80,10 +80,10 @@
     "n_params": 23518152
   },
   "resnet34_hires": {
-    "best_val_acc": 0.23255813953488372,
-    "best_train_acc": 0.18591101694915255,
-    "training_time_s": 180.53327703475952,
-    "epochs_trained": 2,
+    "best_val_acc": 0.8435517970401691,
+    "best_train_acc": 0.8988347457627118,
+    "training_time_s": 25254.46212029457,
+    "epochs_trained": 150,
     "optimizer": "adamw",
     "scheduler": "onecycle",
     "learning_rate": 0.001,
